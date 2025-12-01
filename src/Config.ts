@@ -135,7 +135,7 @@ export class Config {
   /**
    * Realiza un merge profundo seguro con los valores predeterminados
    */
-  private mergeWithDefaults(parsed: any): AppConfigData {
+  public mergeWithDefaults(parsed: Partial<AppConfigData> = {}): AppConfigData {
     // Create a deep copy of defaults to avoid mutation
     const result = JSON.parse(JSON.stringify(this.data));
 

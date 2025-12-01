@@ -11,9 +11,9 @@ export class Guardian extends EventEmitter {
   protected intentionalStop = false;
   protected config: Config;
 
-  constructor() {
+  constructor(config?: Config) {
     super();
-    this.config = Config.getInstance();
+    this.config = config || Config.getInstance();
 
     // Seguridad: Si el proceso de Node/Bun muere, matar al hijo.
     process.on("beforeExit", () => this.kill());
