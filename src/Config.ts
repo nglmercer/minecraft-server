@@ -183,7 +183,7 @@ export class Config {
     const yamlContent = this.toYAML(this.data);
 
     writeFileSync(this.configPath, yamlContent, "utf-8");
-    console.log(`✅ Configuration saved to ${this.configPath}`);
+    //console.log(`✅ Configuration saved to ${this.configPath}`);
   }
 
   /**
