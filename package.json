@@ -10,7 +10,8 @@
     "typescript": "^5"
   },
   "scripts": {
-    "start": "bun index.ts"
+    "start": "bun index.ts",
+    "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
     "java-path": "^1.0.3",

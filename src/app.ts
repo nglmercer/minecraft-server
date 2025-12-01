@@ -24,7 +24,7 @@ export abstract class BasePlugin extends EventEmitter {
    */
   async initialize(): Promise<boolean> {
     try {
-      await this.config.load();
+      this.config.loadSync();
       this.setupGuardianEvents();
       this.setupPluginEvents();
       return true;
