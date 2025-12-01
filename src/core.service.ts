@@ -23,7 +23,6 @@ export async function downloadServer(_options?: Partial<DownloadOptions>) {
     core: "paper" as ServerCore,
     version: "1.21",
     outputDir: configData.server.cwd,
-    filename: "server.jar",
   };
   const options = { ...defaultOptions, ..._options };
   const result = await manager.downloadServer(options);

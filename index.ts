@@ -17,8 +17,9 @@ async function main() {
     }
 
     const coreInfo = await downloadServer({
-      version: "1.19.2",
+      version: "1.21",
       core: "paper",
+      //  filename:
     });
 
     // Cargar la configuración existente
