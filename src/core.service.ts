@@ -14,7 +14,7 @@ function generateEula(accept = true, customDate = null) {
   return [
     "#By changing the setting below to TRUE you are indicating your agreement to our EULA (https://aka.ms/MinecraftEULA).",
     `#${date}`,
-    `#eula=${accept}`,
+    `eula=${accept}`,
   ].join("\n");
 }
 export async function downloadServer(_options?: Partial<DownloadOptions>) {
