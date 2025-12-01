@@ -1,0 +1,19 @@
+{
+  "name": "minecraft-server",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "scripts": {
+    "start": "bun index.ts"
+  },
+  "dependencies": {
+    "java-path": "^1.0.3",
+    "minecraft-core": "^1.0.0"
+  }
+}

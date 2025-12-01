@@ -1,0 +1,21 @@
+{
+  "server": {
+    "jarPath": "server.jar",
+    "javaBin": "java",
+    "jvmOptions": ["-Xmx2G", "-Xms2G"],
+    "programArgs": ["nogui"],
+    "port": 25565
+  },
+  "guardian": {
+    "autoRestart": true,
+    "maxRetries": 3,
+    "retryDelayMs": 5000
+  },
+  "security": {
+    "wsPort": 3000,
+    "authToken": "change-me-secure-token"
+  },
+  "discord": {
+    "webhookUrl": ""
+  }
+}

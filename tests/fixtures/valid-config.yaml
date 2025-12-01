@@ -1,0 +1,22 @@
+# Guardian Server Configuration
+# Test fixture for valid configuration
+
+server:
+  jarPath: "server.jar"
+  javaBin: "java"
+  jvmOptions:
+    - "-Xmx2G"
+    - "-Xms2G"
+  programArgs:
+    - "nogui"
+  port: 25565
+  cwd: "C:\\Users\\mm\\Documents\\Minecraft\\minecraft-server\\data\\server"
+
+guardian:
+  autoRestart: true
+  maxRetries: 3
+  retryDelayMs: 5000
+  paths:
+    data: "C:\\Users\\mm\\Documents\\Minecraft\\minecraft-server\\data"
+    logs: "C:\\Users\\mm\\Documents\\Minecraft\\minecraft-server\\logs"
+    backups: "C:\\Users\\mm\\Documents\\Minecraft\\minecraft-server\\backups"
