@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g., v1.0.0)'
+        description: "Release version (e.g., v1.0.0)"
         required: true
-        default: 'v1.0.0'
+        default: "v1.0.0"
 
 env:
   REGISTRY: ghcr.io
@@ -129,28 +129,3 @@ jobs:
             artifacts/app-macos-arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-This GitHub workflow will:
-
-1. Trigger on:
-   - Push to tags (e.g., v1.0.0, v2.0.0)
-   - Manual workflow dispatch with a version input
-
-2. Build the application for multiple platforms:
-   - Linux x64 (app-linux)
-   - Windows x64 (app-windows.exe)
-   - macOS x64 (app-macos)
-   - macOS ARM64 (app-macos-arm64) - in a separate job due to matrix limitations
-
-3. Create a GitHub release with all platform binaries attached
-
-4. Use the latest version of Bun for building
-
-The workflow includes proper artifact management, error handling, and will create a release with all platform binaries when a tag is pushed or when manually triggered.
-
-To use this workflow:
-1. Push a tag (e.g., `git tag v1.0.0 && git push origin v1.0.0`)
-2. Or manually trigger it from the GitHub Actions tab with your desired version number
-
-The release will include all platform binaries that users can download directly from the GitHub release page.
