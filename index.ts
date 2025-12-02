@@ -2,7 +2,7 @@ import { getOrInstallJava } from "./src/java.service";
 import { downloadServer } from "./src/core.service";
 import { Guardian } from "./src/guardian";
 import { Config } from "./src/Config";
-import path from "path";
+import { BackupPlugin } from "./src/plugins/backup";
 
 async function main() {
   try {
@@ -31,7 +31,21 @@ async function main() {
     });
 
     const guardian = new Guardian(config);
-
+    const backupSystem = new BackupPlugin({
+      cronSchedule: "0 0 4 * * *",
+      backupPath: config.guardian.paths.backups, // Usamos la ruta de tu Config.ts
+      maxBackupsToKeep: 5,
+    });
+    /*
+    this.config = {
+      // 0 segundos, 0 minutos, 4 horas (4:00:00 AM)
+      cronSchedule: config.cronSchedule || "0 0 4 * * *",
+      backupPath: config.backupPath || "./backups",
+      maxBackupsToKeep: config.maxBackupsToKeep || 5,
+      timeZone: config.timeZone || "America/Lima", // Define tu zona horaria explícitamente
+    };
+    */
+    guardian.use(backupSystem);
     // Configurar los manejadores de eventos ANTES de iniciar
     guardian.on("error", (error) => {
       console.error("Guardian error:", error);

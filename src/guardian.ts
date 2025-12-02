@@ -2,7 +2,12 @@ import { spawn } from "bun";
 import { EventEmitter } from "node:events";
 import path from "node:path";
 import { Config } from "./Config";
-import type { GuardianStatus, ExitEvent, GuardianProcess } from "./types";
+import type {
+  GuardianStatus,
+  ExitEvent,
+  GuardianProcess,
+  GuardianPlugin,
+} from "./types";
 
 export class Guardian extends EventEmitter {
   protected process: GuardianProcess | null = null;
@@ -10,6 +15,7 @@ export class Guardian extends EventEmitter {
   protected crashCount = 0;
   protected intentionalStop = false;
   protected config: Config;
+  protected plugins: Map<string, GuardianPlugin> = new Map();
 
   constructor(config?: Config) {
     super();
@@ -17,9 +23,6 @@ export class Guardian extends EventEmitter {
 
     // Seguridad: Si el proceso de Node/Bun muere, matar al hijo.
     process.on("beforeExit", () => this.kill());
-    process.on("SIGINT", () => {
-      this.stop().then(() => process.exit(0));
-    });
   }
 
   get status() {
@@ -229,5 +232,25 @@ export class Guardian extends EventEmitter {
     } finally {
       reader.releaseLock();
     }
+  }
+  /**
+   * Registra y carga un plugin
+   */
+  public use(plugin: GuardianPlugin) {
+    if (this.plugins.has(plugin.name)) {
+      console.warn(`Plugin ${plugin.name} ya está registrado.`);
+      return;
+    }
+
+    try {
+      plugin.onLoad(this);
+      this.plugins.set(plugin.name, plugin);
+      this.emit("log", `Plugin loaded: ${plugin.name} v${plugin.version}`);
+    } catch (e) {
+      this.emit("error", `Error loading plugin ${plugin.name}: ${e}`);
+    }
+  }
+  public getConfig(): Config {
+    return this.config;
   }
 }

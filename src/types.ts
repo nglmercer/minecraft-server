@@ -1,6 +1,13 @@
 import type { Subprocess } from "bun";
 export type GuardianProcess = Subprocess<"pipe", "pipe", "pipe">;
+import type { Guardian } from "./guardian"; // Ajusta el import según tu estructura
 
+export interface GuardianPlugin {
+  name: string;
+  version: string;
+  onLoad(guardian: Guardian): void;
+  onUnload?(): void;
+}
 export type GuardianStatus =
   | "OFFLINE"
   | "STARTING"

@@ -15,7 +15,9 @@
     "build": "bun build.ts"
   },
   "dependencies": {
+    "cron": "^4.3.5",
     "java-path": "^1.0.3",
-    "minecraft-core": "^1.0.1"
+    "minecraft-core": "^1.0.1",
+    "tar": "^7.5.2"
   }
 }
