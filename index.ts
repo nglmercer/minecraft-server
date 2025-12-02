@@ -6,10 +6,10 @@ import path from "path";
 
 async function main() {
   try {
-    const result_java = await getOrInstallJava(23);
-    //console.log("result", result);
     const config = Config.getInstance();
     config.loadSync();
+    const result_java = await getOrInstallJava(23);
+    //console.log("result", result);
 
     if (!result_java) {
       console.error("Failed to get or install Java");

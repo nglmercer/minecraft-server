@@ -54,6 +54,31 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: dist-build/${{ matrix.artifact_name }}
 
+  build-linux-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build for Linux ARM64
+        run: |
+          mkdir -p dist-build
+          bun build ./index.ts --compile --target=bun-linux-arm64 --outfile=dist-build/app-linux-arm64 --minify
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-linux-arm64
+          path: dist-build/app-linux-arm64
+
   build-macos-arm64:
     runs-on: macos-latest
     steps:
@@ -80,7 +105,7 @@ jobs:
           path: dist-build/app-macos-arm64
 
   release:
-    needs: [build, build-macos-arm64]
+    needs: [build, build-linux-arm64, build-macos-arm64]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -102,6 +127,7 @@ jobs:
         with:
           files: |
             artifacts/app-linux/app-linux
+            artifacts/app-linux-arm64/app-linux-arm64
             artifacts/app-windows.exe/app-windows.exe
             artifacts/app-macos/app-macos
             artifacts/app-macos-arm64/app-macos-arm64

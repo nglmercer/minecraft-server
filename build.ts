@@ -21,6 +21,11 @@ const TARGETS = [
     outfile: "app-windows.exe",
   },
   { name: "linux-x64", target: "bun-linux-x64", outfile: "app-linux" },
+  {
+    name: "linux-arm64",
+    target: "bun-linux-arm64",
+    outfile: "app-linux-arm64",
+  },
   { name: "macos-x64", target: "bun-darwin-x64", outfile: "app-macos" },
   {
     name: "macos-arm64",
