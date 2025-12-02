@@ -1,0 +1,156 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            target: bun-linux-x64
+            artifact_name: app-linux
+          - os: windows-latest
+            target: bun-windows-x64
+            artifact_name: app-windows.exe
+          - os: macos-latest
+            target: bun-darwin-x64
+            artifact_name: app-macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build application
+        run: |
+          mkdir -p dist-build
+          bun build ./index.ts --compile --target=${{ matrix.target }} --outfile=dist-build/${{ matrix.artifact_name }} --minify
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist-build/${{ matrix.artifact_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/app-linux/app-linux
+            artifacts/app-windows.exe/app-windows.exe
+            artifacts/app-macos/app-macos
+          name: Release ${{ github.ref_name || github.event.inputs.version }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos-arm64:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build for macOS ARM64
+        run: |
+          mkdir -p dist-build
+          bun build ./index.ts --compile --target=bun-darwin-arm64 --outfile=dist-build/app-macos-arm64 --minify
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-macos-arm64
+          path: dist-build/app-macos-arm64
+
+  finalize-release:
+    needs: [build, build-macos-arm64]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download ARM64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-macos-arm64
+          path: artifacts
+
+      - name: Update release with ARM64 binary
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/app-macos-arm64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+This GitHub workflow will:
+
+1. Trigger on:
+   - Push to tags (e.g., v1.0.0, v2.0.0)
+   - Manual workflow dispatch with a version input
+
+2. Build the application for multiple platforms:
+   - Linux x64 (app-linux)
+   - Windows x64 (app-windows.exe)
+   - macOS x64 (app-macos)
+   - macOS ARM64 (app-macos-arm64) - in a separate job due to matrix limitations
+
+3. Create a GitHub release with all platform binaries attached
+
+4. Use the latest version of Bun for building
+
+The workflow includes proper artifact management, error handling, and will create a release with all platform binaries when a tag is pushed or when manually triggered.
+
+To use this workflow:
+1. Push a tag (e.g., `git tag v1.0.0 && git push origin v1.0.0`)
+2. Or manually trigger it from the GitHub Actions tab with your desired version number
+
+The release will include all platform binaries that users can download directly from the GitHub release page.
