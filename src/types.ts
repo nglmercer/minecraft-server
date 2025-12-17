@@ -28,6 +28,9 @@ export interface ServerConfig {
   programArgs: string[]; // Ej: nogui
   port: number;
   cwd: string; // Directorio de trabajo
+  javaVersion: number; // Preferred Java version (e.g., 21)
+  core: string; // Preferred server core (e.g., "paper")
+  coreVersion: string; // Preferred core version (e.g., "1.21.1")
 }
 
 export interface GuardianConfig {

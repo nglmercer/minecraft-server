@@ -49,6 +49,9 @@ export class Config {
         programArgs: ["nogui"],
         port: 25565,
         cwd: path.join(dataPath, "server"),
+        javaVersion: 21,
+        core: "paper",
+        coreVersion: "1.21.1",
       },
       guardian: {
         autoRestart: true,
@@ -71,7 +74,12 @@ export class Config {
       if (!existsSync(this.configPath)) {
         console.warn("⚠️  Config file not found, creating default structure.");
         this.saveSync();
-        return this.data;
+        console.log(
+          "✅ Default configuration created at " +
+            this.configPath +
+            ".\nPlease edit it and restart the server.",
+        );
+        process.exit(0);
       }
 
       // 1. Leemos el archivo síncronamente
@@ -281,6 +289,9 @@ ${this.formatYaml(compactYaml)}`;
     let result = "server:\n";
     result += `  jarPath: "${this.escapeYamlValue(parsed.server.jarPath)}"\n`;
     result += `  javaBin: "${this.escapeYamlValue(parsed.server.javaBin)}"\n`;
+    result += `  javaVersion: ${parsed.server.javaVersion}\n`;
+    result += `  core: "${this.escapeYamlValue(parsed.server.core)}"\n`;
+    result += `  coreVersion: "${this.escapeYamlValue(parsed.server.coreVersion)}"\n`;
     result += "  jvmOptions:\n";
     for (const opt of parsed.server.jvmOptions) {
       result += `    - "${this.escapeYamlValue(opt)}"\n`;

@@ -3,12 +3,12 @@ import { downloadServer } from "./src/core.service";
 import { Guardian } from "./src/guardian";
 import { Config } from "./src/Config";
 import { BackupPlugin } from "./src/plugins/backup";
-
+import { type ServerCore } from "minecraft-core";
 async function main() {
   try {
     const config = Config.getInstance();
     config.loadSync();
-    const result_java = await getOrInstallJava(23);
+    const result_java = await getOrInstallJava(config.server.javaVersion);
     //console.log("result", result);
 
     if (!result_java) {
@@ -17,8 +17,8 @@ async function main() {
     }
 
     const coreInfo = await downloadServer({
-      version: "1.21",
-      core: "paper",
+      version: config.server.coreVersion,
+      core: config.server.core as ServerCore,
       //  filename:
     });
 

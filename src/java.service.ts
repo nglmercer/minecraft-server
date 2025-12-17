@@ -1,52 +1,109 @@
-import { findJavaVersion, getJavaInfoByVersion, getJavaInfo } from "java-path";
+import { findJavaVersion, getJavaInfoByVersion, getJavaInfo,FileUtils } from "java-path";
 import { defaultPaths } from "java-path";
 import { JavaInfoService } from "java-path";
 import { taskManager } from "java-path";
 import path from "path";
 
 export async function getOrInstallJava(version = 21) {
-  // First, check if the version is already installed
+  console.log(`Checking for Java ${version}...`);
+
+  // First, check if the version is already installed locally
   const findResult = await findJavaVersion(defaultPaths.unpackPath, version);
-  if (!findResult) {
-    const allJavaVersions = await JavaInfoService.getInstallableVersions();
-    // Find the specific version
-    const findVersion = await JavaInfoService.filter(
-      allJavaVersions.data.releases,
-      Number(version),
-    );
-
-    if (!findVersion.data) {
-      console.warn("No Java version found");
-      return { findVersion };
-    }
-
-    // Download Java
-    const downloadJava = await JavaInfoService.downloadJavaRelease(
-      findVersion.data,
-      `java-${version}.zip`,
-    );
-
-    if (!downloadJava || !downloadJava.data) {
-      console.error("Failed to download Java");
-      return { findVersion };
-    }
-
-    // Wait for download to complete
-    await downloadJava.data.promise;
-
-    // Unpack the downloaded Java
-    const { promise, taskId } = await taskManager.unpack(
-      path.join(defaultPaths.downloadPath, `java-${version}.zip`),
-    );
-
-    await promise;
-
-    // Verify the installation
-    const newResult = await findJavaVersion(defaultPaths.unpackPath, version);
-    return { findResult: newResult };
+  if (findResult) {
+    console.log(`✅ Found Java ${version} locally: ${findResult.javaExecutable}`);
+    return { findResult };
   }
 
-  return { findResult };
+  console.log(`⬇️ Java ${version} not found locally. Initiating download...`);
+
+  // Fetch available versions
+  const allJavaVersions = await JavaInfoService.getInstallableVersions();
+  
+  // Handle potential ServiceResponse structure
+  const releases = allJavaVersions.data?.releases;
+
+  if (!releases) {
+    console.error("❌ Failed to fetch installable Java versions.");
+    return null;
+  }
+
+  // Find the specific version
+  const release = await JavaInfoService.filter(releases, Number(version));
+
+  if (!release || !release.success || !release.data) {
+    console.warn(`⚠️ No release found for Java ${version}`);
+    return null;
+  }
+
+  // Download Java
+  const fileName = `java-${version}.zip`;
+  const downloadTask = await JavaInfoService.downloadJavaRelease(
+    release.data,
+    fileName,
+  );
+
+  if (!downloadTask || !downloadTask.data) {
+    console.error("❌ Failed to initialize download task");
+    return null;
+  }
+
+  // Track progress
+  taskManager.on("task:progress", (task) => {
+    if (task.id === downloadTask.data.taskId) {
+      process.stdout.write(`\rDownloading: ${task.progress.toFixed(1)}%`);
+    }
+  });
+
+  // Wait for download to complete
+  try {
+    await downloadTask.data.promise;
+    console.log("\n✅ Download complete.");
+  } catch (err) {
+    console.error("\n❌ Download failed:", err);
+    return null;
+  }
+
+  // Verify Checksum
+  const downloadPath = path.join(defaultPaths.downloadPath, fileName);
+  // Attempt to find checksum in release object (Adoptium format often uses binary.checksum)
+  const rel = release as any;
+  const expectedChecksum = rel.binary?.checksum || rel.checksum || rel.sha256;
+  
+  if (expectedChecksum) {
+    console.log(`Verifying checksum...`);
+    const isValid = await FileUtils.verifyFileIntegrity(downloadPath, expectedChecksum);
+    if (!isValid) {
+      console.error("❌ Checksum verification failed! The downloaded file may be corrupted.");
+      return null;
+    }
+    console.log("✅ Checksum verified.");
+  } else {
+    console.warn("⚠️  No checksum info found in release, skipping verification.");
+  }
+
+  // Unpack the downloaded Java
+  console.log("📦 Unpacking Java...");
+  const unpackTask = await taskManager.unpack(
+    downloadPath,
+    { destination: defaultPaths.unpackPath }
+  );
+
+  try {
+    await unpackTask.promise;
+    console.log("✅ Unpack complete.");
+  } catch (err) {
+    console.error("❌ Unpack failed:", err);
+    return null;
+  }
+
+  // Verify the installation
+  const newResult = await findJavaVersion(defaultPaths.unpackPath, version);
+  if (!newResult) {
+    console.error("❌ Verification failed after installation.");
+    return null;
+  }
+  
+  return { findResult: newResult };
 }
 
 // Usage
