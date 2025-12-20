@@ -121,7 +121,7 @@ async function main() {
 
     /** Manejador de salida del servidor (logs del juego) */
     guardian.on("output", (message) => {
-      console.log("🎮 Server output:", message);
+      console.log("log:",message);
     });
 
     /** Manejador de logs internos del Guardian */
