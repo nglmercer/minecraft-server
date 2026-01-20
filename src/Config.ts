@@ -1,6 +1,21 @@
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type { GuardianConfig, ServerConfig } from "./types";
+import { waitForInputOrTimeout } from "./utils/cli";
+
+// --- CONSTANTES PARA EVITAR MAGIC STRINGS ---
+const CONFIG_CONSTANTS = {
+  DEFAULT_DIR: "config",
+  DEFAULT_FILE: "config.yaml",
+  DATA_DIR: "data",
+  LOGS_DIR: "logs",
+  BACKUPS_DIR: "backups",
+  SERVER_JAR: "server.jar",
+  JAVA_BIN: "java",
+  PAPER_CORE: "paper",
+  DEFAULT_VERSION: "1.21.1",
+  CHARSET: "utf-8" as BufferEncoding,
+};
 
 export interface AppConfigData {
   server: ServerConfig;
@@ -15,12 +30,11 @@ export class Config {
 
   private constructor(customConfigPath?: string) {
     if (customConfigPath) {
-      // Resolve to absolute path to ensure proper directory resolution
       this.configPath = path.resolve(customConfigPath);
       this.configDir = path.dirname(this.configPath);
     } else {
-      this.configDir = path.resolve(process.cwd(), "config");
-      this.configPath = path.resolve(this.configDir, "config.yaml");
+      this.configDir = path.resolve(process.cwd(), CONFIG_CONSTANTS.DEFAULT_DIR);
+      this.configPath = path.resolve(this.configDir, CONFIG_CONSTANTS.DEFAULT_FILE);
     }
     this.data = this.getDefaults();
   }
@@ -39,19 +53,19 @@ export class Config {
 
   public getDefaults(): AppConfigData {
     const rootDir = process.cwd();
-    const dataPath = path.resolve(rootDir, "data");
+    const dataPath = path.resolve(rootDir, CONFIG_CONSTANTS.DATA_DIR);
 
     return {
       server: {
-        jarPath: "server.jar",
-        javaBin: "java",
+        jarPath: CONFIG_CONSTANTS.SERVER_JAR,
+        javaBin: CONFIG_CONSTANTS.JAVA_BIN,
         jvmOptions: ["-Xmx2G", "-Xms2G"],
         programArgs: ["nogui"],
         port: 25565,
         cwd: path.join(dataPath, "server"),
         javaVersion: 21,
-        core: "paper",
-        coreVersion: "1.21.1",
+        core: CONFIG_CONSTANTS.PAPER_CORE,
+        coreVersion: CONFIG_CONSTANTS.DEFAULT_VERSION,
       },
       guardian: {
         autoRestart: true,
@@ -59,8 +73,8 @@ export class Config {
         retryDelayMs: 5000,
         paths: {
           data: dataPath,
-          logs: path.resolve(rootDir, "logs"),
-          backups: path.resolve(rootDir, "backups"),
+          logs: path.resolve(rootDir, CONFIG_CONSTANTS.LOGS_DIR),
+          backups: path.resolve(rootDir, CONFIG_CONSTANTS.BACKUPS_DIR),
         },
       },
     };
@@ -72,14 +86,9 @@ export class Config {
   public loadSync(): AppConfigData {
     try {
       if (!existsSync(this.configPath)) {
-        console.warn("⚠️  Config file not found, creating default structure.");
+        console.warn("Config file not found, creating default structure.");
         this.saveSync();
-        console.log(
-          "✅ Default configuration created at " +
-            this.configPath +
-            ".\nPlease edit it and restart the server.",
-        );
-        process.exit(0);
+        // implement a async process or block and await 10 seconds or await user input
       }
 
       // 1. Leemos el archivo síncronamente
@@ -139,7 +148,43 @@ export class Config {
       return this.data;
     }
   }
+  public async load(): Promise<AppConfigData> {
+    try {
+      if (!existsSync(this.configPath)) {
+        console.warn("⚠️  Config file not found, creating default structure.");
+        this.saveSync();
+        
+        await waitForInputOrTimeout(
+          "Configuración inicial generada. Por favor revisa el archivo YAML.",
+          10000 // 10 segundos
+        );
+      }
 
+      const content = readFileSync(this.configPath, CONFIG_CONSTANTS.CHARSET);
+
+      if (!content.trim()) {
+        console.warn("⚠️  Config file is empty, using defaults.");
+        return this.data;
+      }
+
+      let parsed: any = {};
+      try {
+        parsed = Bun.YAML.parse(content);
+        if (Array.isArray(parsed)) {
+          parsed = parsed.find((doc) => doc && (doc.server || doc.guardian)) || parsed[0] || {};
+        }
+      } catch (yamlError) {
+        console.error("⚠️  YAML parse error, using defaults.");
+        parsed = {};
+      }
+
+      this.data = this.mergeWithDefaults(parsed);
+      return this.data;
+    } catch (e) {
+      console.error("❌ Error loading config:", e);
+      return this.data;
+    }
+  }
   /**
    * Realiza un merge profundo seguro con los valores predeterminados
    */

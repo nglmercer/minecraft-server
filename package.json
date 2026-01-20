@@ -15,9 +15,11 @@
     "build": "bun build.ts"
   },
   "dependencies": {
+    "bun_plugins": "^1.2.5",
     "cron": "^4.3.5",
     "java-path": "^1.0.7",
     "minecraft-core": "^1.0.2",
-    "tar": "^7.5.2"
+    "tar": "^7.5.2",
+    "trigger_system": "^1.0.7"
   }
 }
