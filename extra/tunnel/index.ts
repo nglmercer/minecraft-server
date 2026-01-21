@@ -1,4 +1,3 @@
-// extra/tunnel/index.ts
 import { BinaryManager, type BinaryManagerConfig } from "./binary-manager";
 import { TunnelManager, type tunnelConfig } from "./tunnel-manager";
 import path from "path";
@@ -6,6 +5,7 @@ import path from "path";
 const CONFIG: BinaryManagerConfig = {
   dataDir: path.join(process.cwd(), "data", "playit"),
 };
+
 async function installPlayitBinary(): Promise<string> {
   const binarymanager = new BinaryManager(CONFIG);
   try {
@@ -13,8 +13,10 @@ async function installPlayitBinary(): Promise<string> {
     if (download) {
       return download.binaryPath;
     }
-
-    return binarymanager.getDefaultBinaryPath()!;
+    const defaultPath = binarymanager.getDefaultBinaryPath();
+    if (!defaultPath)
+      throw new Error("No se pudo determinar la ruta del binario");
+    return defaultPath;
   } catch (error) {
     console.error({ error });
     throw error;
@@ -23,81 +25,50 @@ async function installPlayitBinary(): Promise<string> {
 
 async function startTunnel(): Promise<void> {
   const binaryPath = await installPlayitBinary();
-  const TUNNEL_CONFIG: tunnelConfig = {
+
+  const tunnelConfig: tunnelConfig = {
     port: 25565,
     binaryPath,
     dataDir: CONFIG.dataDir,
-  };
-  // Build arguments for playit
-  const args = [`--relay-tcp-port:${TUNNEL_CONFIG.port}`, "--master"];
-
-  // Create tunnel configuration
-  const tunnelConfig = {
-    ...TUNNEL_CONFIG,
-    binaryPath,
-    args,
-    dataDir: TUNNEL_CONFIG.dataDir,
-    timeoutMs: 30000,
+    // Eliminamos 'args' extras y 'token' para forzar el modo normal/interactivo
+    token: undefined,
   };
 
-  // Create and start tunnel manager
   const manager = new TunnelManager(tunnelConfig);
 
+  // Importante: Esto permite ver el link en la consola
+  manager.on("data", (msg) => console.log(msg));
+  manager.on("error", (msg) => console.error(msg));
+
   try {
+    // start() esperará hasta que el túnel esté "running" o aparezca el link de setup
     const result = await manager.start();
 
     if (result) {
-      console.log(manager.getConfig());
-
-      // Try to extract share URL from output
-      const shareUrl = extractShareUrl(
-        manager.getProcess()?.stdout?.toString() || "",
+      console.log("\n✅ Proceso de Playit iniciado.");
+      console.log(
+        "ℹ️  Si es la primera vez, usa el link de arriba para vincular.",
       );
-      if (shareUrl) {
-        console.log(`Share URL: ${shareUrl}`);
-      }
       await waitForInterrupt();
       await manager.stop();
     }
   } catch (error) {
-    console.error({ error });
-    throw error;
-  }
-}
-
-function extractShareUrl(output?: string): string | null {
-  if (!output) return null;
-
-  // Look for playit.gg URLs
-  const patterns = [
-    /https:\/\/[a-z0-9-]+\.playit\.gg/gi,
-    /playit\.gg\/share\/[a-zA-Z0-9-]+/gi,
-  ];
-
-  for (const pattern of patterns) {
-    const match = output.match(pattern);
-    if (match && match[0]) return match[0]; // Use first match
-  }
-
-  return null;
-}
-
-function waitForInterrupt(): Promise<void> {
-  return new Promise((resolve) => {
-    process.on("SIGINT", () => resolve());
-  });
-}
-
-async function main() {
-  try {
-    console.log("Starting tunnel...");
-    await startTunnel();
-  } catch (error) {
-    console.error({ error });
+    console.error("❌ Error iniciando el túnel:", error);
     process.exit(1);
   }
 }
 
-if (import.meta.main) {
-  main();
+function waitForInterrupt(): Promise<void> {
+  return new Promise((resolve) => {
+    process.on("SIGINT", () => {
+      console.log("\nInterrupción recibida, cerrando...");
+      resolve();
+    });
+  });
 }
+
+async function main() {
+  await startTunnel();
+}
+
+main();

@@ -1,17 +1,24 @@
-import { spawn, type ChildProcess } from "child_process";
 import { existsSync } from "fs";
+import { BaseService } from "../terminal";
+
 export interface tunnelConfig {
   binaryPath: string;
   dataDir: string;
   token?: string;
   port: number;
+  args?: string[];
   [key: string]: any;
 }
-export class TunnelManager {
-  private process?: ChildProcess;
+
+export class TunnelManager extends BaseService {
+  public readonly name = "PLAYIT";
+  public readonly themeColor = "magenta";
+
+  private _readyResolver?: (value: boolean) => void;
+  private _readyRejecter?: (reason?: any) => void;
 
   constructor(private config: tunnelConfig) {
-    this.config = config;
+    super();
   }
 
   async start(): Promise<boolean> {
@@ -19,52 +26,66 @@ export class TunnelManager {
       throw new Error(`Binary not found at ${this.config.binaryPath}`);
     }
 
-    // Argumentos corregidos: playit usa espacios o '=' según la versión
-    const args = []; // El comando principal de playit-agent
+    const command: string[] = [this.config.binaryPath];
 
-    if (this.config.token && this.config.token !== "YOUR_TOKEN_HERE") {
-      args.push("--secret", this.config.token);
+    if (this.config.args && Array.isArray(this.config.args)) {
+      command.push(...this.config.args);
     }
 
-    this.process = spawn(this.config.binaryPath, args, {
-      env: { ...process.env, PLAYIT_DATA_DIR: this.config.dataDir },
-      stdio: ["ignore", "pipe", "pipe"],
+    console.log(`launching: ${command.join(" ")}`);
+
+    const waitReady = new Promise<boolean>((resolve, reject) => {
+      this._readyResolver = resolve;
+      this._readyRejecter = reject;
     });
 
-    return new Promise((resolve, reject) => {
-      let output = "";
+    const exitListener = (code: number) => {
+      if (this._readyRejecter) {
+        this._readyRejecter(
+          new Error(
+            `exit code ${code}`,
+          ),
+        );
+        this._cleanupResolvers();
+      }
+    };
+    this.once("exit", exitListener);
 
-      this.process?.stdout?.on("data", (data) => {
-        const line = data.toString();
-        output += line;
-        process.stdout.write(line); // Para ver el link de reclamo en consola
-
-        // Detectar si el túnel ya está operativo
-        if (line.includes("tunnel running") || line.includes("connected")) {
-          resolve(true);
-        }
-      });
-
-      this.process?.stderr?.on("data", (data) => {
-        console.error(`[Playit Error] ${data}`);
-      });
-
-      this.process?.on("error", (err) => {
-        reject(err);
-      });
+    await this.launch(command, {
+      PLAYIT_DATA_DIR: this.config.dataDir,
     });
-  }
 
-  async stop() {
-    if (this.process) {
-      this.process.kill();
-      return new Promise((resolve) => this.process?.on("exit", resolve));
+    try {
+      await waitReady;
+      this.off("exit", exitListener);
+      return true;
+    } catch (e) {
+      this.off("exit", exitListener);
+      throw e;
     }
   }
+
+  protected handleLogic(line: string): void {
+    const lowerLine = line.toLowerCase();
+
+    if (
+      lowerLine.includes("tunnel running") ||
+      lowerLine.includes("connected") ||
+      lowerLine.includes("http server listening")
+    ) {
+      if (this._readyResolver) {
+        this._readyResolver(true);
+        this._cleanupResolvers();
+      }
+    }
+  }
+
+  private _cleanupResolvers() {
+    this._readyResolver = undefined;
+    this._readyRejecter = undefined;
+  }
+
   getConfig() {
     return this.config;
-  }
-  getProcess() {
-    return this.process;
   }
 }
