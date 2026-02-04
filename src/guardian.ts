@@ -18,6 +18,7 @@ import {
   Timeouts,
   ErrorMessages,
 } from "./constants";
+import { convertMinecraftColors, supportsColor } from "./utils/colors";
 
 export class Guardian extends EventEmitter {
   protected process: GuardianProcess | null = null;
@@ -60,9 +61,12 @@ export class Guardian extends EventEmitter {
         this.emit(GuardianEvents.PID, this.process.pid);
       }
 
-      // Manejo robusto de streams con buffers
-      this.processOutput(this.process.stdout, StreamTypes.STDOUT);
-      this.processOutput(this.process.stderr, StreamTypes.STDERR);
+      if (this.process.stdout) {
+        this.processOutput(this.process.stdout, StreamTypes.STDOUT);
+      }
+      if (this.process.stderr) {
+        this.processOutput(this.process.stderr, StreamTypes.STDERR);
+      }
 
       this.setStatus("ONLINE");
 
@@ -91,8 +95,10 @@ export class Guardian extends EventEmitter {
     return {
       cwd: this.config.server.cwd,
       stdin: SpawnOptions.PIPE,
-      stdout: SpawnOptions.PIPE,
-      stderr: SpawnOptions.PIPE,
+      // Usar inherit para preservar colores ANSI del servidor Minecraft
+      // Los colores se muestran directamente en el terminal
+      stdout: SpawnOptions.INHERIT,
+      stderr: SpawnOptions.INHERIT,
     };
   }
 
@@ -201,7 +207,7 @@ export class Guardian extends EventEmitter {
 
   /**
    * Lee streams línea por línea utilizando un buffer para evitar
-   * cortar frases a la mitad.
+   * cortar frases a la mitad. Preserva códigos de color ANSI.
    */
   private async processOutput(
     stream: ReadableStream | null,
@@ -224,8 +230,13 @@ export class Guardian extends EventEmitter {
         // Procesar líneas completas
         let lineEndIndex;
         while ((lineEndIndex = buffer.indexOf("\n")) !== -1) {
-          const line = buffer.substring(0, lineEndIndex).trim();
-          buffer = buffer.substring(lineEndIndex + 1); // Lo que sobra se queda en el buffer
+          let line = buffer.substring(0, lineEndIndex);
+          buffer = buffer.substring(lineEndIndex + 1);
+
+          // Convertir códigos de color de Minecraft (§) a códigos ANSI
+          if (supportsColor()) {
+            line = convertMinecraftColors(line);
+          }
 
           if (line) {
             this.emit(GuardianEvents.OUTPUT, line);
@@ -236,7 +247,11 @@ export class Guardian extends EventEmitter {
 
       // Procesar remanente si el stream se cierra sin un salto de línea final
       if (buffer.trim()) {
-        this.emit(GuardianEvents.OUTPUT, buffer.trim());
+        let line = buffer.trim();
+        if (supportsColor()) {
+          line = convertMinecraftColors(line);
+        }
+        this.emit(GuardianEvents.OUTPUT, line);
       }
     } catch (e) {
       // Ignorar errores de stream cerrado
