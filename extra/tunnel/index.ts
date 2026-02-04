@@ -45,23 +45,21 @@ async function startTunnel(): Promise<void> {
     const result = await manager.start();
 
     if (result) {
-      console.log("\n✅ Proceso de Playit iniciado.");
-      console.log(
-        "ℹ️  Si es la primera vez, usa el link de arriba para vincular.",
-      );
+
       await waitForInterrupt();
       await manager.stop();
     }
-  } catch (error) {
-    console.error("❌ Error iniciando el túnel:", error);
+  } catch (e) {
+    console.error({e});
     process.exit(1);
   }
 }
 
 function waitForInterrupt(): Promise<void> {
   return new Promise((resolve) => {
-    process.on("SIGINT", () => {
-      console.log("\nInterrupción recibida, cerrando...");
+    const eventClose = "SIGINT";
+    process.on(eventClose, () => {
+      console.log(`\n${eventClose} received, closing...`);
       resolve();
     });
   });

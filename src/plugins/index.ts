@@ -17,7 +17,7 @@ export class BasePluginManager extends PluginManager {
     
     // Registrar los plugins core automáticamente
     this.register(new ActionRegistryPlugin());
-    console.log("📦 BasePluginManager: Plugins ActionRegistry y RuleTester registrados");
+    console.log("ActionRegistryPlugin");
   }
 
   /**
