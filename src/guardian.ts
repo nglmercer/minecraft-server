@@ -2,12 +2,22 @@ import { spawn } from "bun";
 import { EventEmitter } from "node:events";
 import path from "node:path";
 import { Config } from "./Config";
+import { BasePluginManager } from "./plugins";
 import type {
   GuardianStatus,
   ExitEvent,
   GuardianProcess,
-  GuardianPlugin,
 } from "./types";
+import {
+  GuardianMessages,
+  GuardianEvents,
+  MinecraftCommands,
+  StreamTypes,
+  SpawnOptions,
+  ExitCodes,
+  Timeouts,
+  ErrorMessages,
+} from "./constants";
 
 export class Guardian extends EventEmitter {
   protected process: GuardianProcess | null = null;
@@ -15,11 +25,12 @@ export class Guardian extends EventEmitter {
   protected crashCount = 0;
   protected intentionalStop = false;
   protected config: Config;
-  protected plugins: Map<string, GuardianPlugin> = new Map();
+  protected pluginManager: BasePluginManager;
 
-  constructor(config?: Config) {
+  constructor(config?: Config, pluginManager?: BasePluginManager) {
     super();
     this.config = config || Config.getInstance();
+    this.pluginManager = pluginManager || new BasePluginManager();
 
     // Seguridad: Si el proceso de Node/Bun muere, matar al hijo.
     process.on("beforeExit", () => this.kill());
@@ -46,12 +57,12 @@ export class Guardian extends EventEmitter {
       this.process = spawn(cmd, opts);
 
       if (this.process.pid) {
-        this.emit("pid", this.process.pid);
+        this.emit(GuardianEvents.PID, this.process.pid);
       }
 
       // Manejo robusto de streams con buffers
-      this.processOutput(this.process.stdout, "OUT");
-      this.processOutput(this.process.stderr, "ERR");
+      this.processOutput(this.process.stdout, StreamTypes.STDOUT);
+      this.processOutput(this.process.stderr, StreamTypes.STDERR);
 
       this.setStatus("ONLINE");
 
@@ -59,7 +70,7 @@ export class Guardian extends EventEmitter {
       const exitCode = await this.process.exited;
       this.handleExit(exitCode);
     } catch (e) {
-      this.emit("error", `Failed to spawn process: ${e}`);
+      this.emit(GuardianEvents.ERROR, `${ErrorMessages.SPAWN_FAILED}: ${e}`);
       this.setStatus("OFFLINE");
       this.process = null;
     }
@@ -79,9 +90,9 @@ export class Guardian extends EventEmitter {
   protected buildSpawnOptions() {
     return {
       cwd: this.config.server.cwd,
-      stdin: "pipe" as const,
-      stdout: "pipe" as const,
-      stderr: "pipe" as const,
+      stdin: SpawnOptions.PIPE,
+      stdout: SpawnOptions.PIPE,
+      stderr: SpawnOptions.PIPE,
     };
   }
 
@@ -91,7 +102,7 @@ export class Guardian extends EventEmitter {
       this.process.stdin.write(command + "\n");
       this.process.stdin.flush();
     } catch (e) {
-      this.emit("error", `Failed to write to stdin: ${e}`);
+      this.emit(GuardianEvents.ERROR, `${ErrorMessages.STDIN_WRITE_FAILED}: ${e}`);
     }
   }
 
@@ -103,22 +114,22 @@ export class Guardian extends EventEmitter {
 
     this.intentionalStop = true;
     this.setStatus("STOPPING");
-    this.emit("log", "Stopping server gracefully...");
+    this.emit(GuardianEvents.LOG, GuardianMessages.STOPPING);
 
-    this.write("stop");
+    this.write(MinecraftCommands.SAVE_STOP);
 
     // Promesa que se resuelve si el proceso muere naturalmente
     const exitPromise = this.process.exited;
 
     // Timer para forzar el cierre
     const timeoutPromise = new Promise<void>((_, reject) => {
-      setTimeout(() => reject(new Error("TIMEOUT")), 10000);
+      setTimeout(() => reject(new Error(ErrorMessages.TIMEOUT)), Timeouts.GRACEFUL_SHUTDOWN);
     });
 
     try {
       await Promise.race([exitPromise, timeoutPromise]);
     } catch (e) {
-      this.emit("log", "Server hung, forcing kill (SIGKILL)...");
+      this.emit(GuardianEvents.LOG, GuardianMessages.HUNG);
       this.kill();
     }
   }
@@ -135,7 +146,7 @@ export class Guardian extends EventEmitter {
   protected setStatus(s: GuardianStatus) {
     if (this._status !== s) {
       this._status = s;
-      this.emit("status", s);
+      this.emit(GuardianEvents.STATUS, s);
     }
   }
 
@@ -145,20 +156,20 @@ export class Guardian extends EventEmitter {
 
     this.process = null;
     let isCrash = false;
-    let reason = "Unknown";
+    let reason: string = GuardianMessages.UNKNOWN;
 
     // 0 = Normal, 130 = SIGINT (Ctrl+C manual), 143 = SIGTERM
     if (this.intentionalStop) {
-      reason = "Manual Stop";
-    } else if (code === 0 || code === 130 || code === 143) {
-      reason = "Normal Exit";
+      reason = GuardianMessages.MANUAL_STOP;
+    } else if (code === ExitCodes.SUCCESS || code === ExitCodes.SIGINT || code === ExitCodes.SIGTERM) {
+      reason = GuardianMessages.NORMAL_EXIT;
     } else {
       isCrash = true;
-      reason = `Crash (Exit Code ${code ?? "Signal"})`;
+      reason = GuardianMessages.CRASH_REASON(code);
     }
 
     const event: ExitEvent = { code, isCrash, reason };
-    this.emit("stopped", event);
+    this.emit(GuardianEvents.STOPPED, event);
 
     if (isCrash) {
       this.setStatus("CRASHED");
@@ -177,13 +188,13 @@ export class Guardian extends EventEmitter {
       const delay = gConfig.retryDelayMs;
 
       this.emit(
-        "log",
+        GuardianEvents.LOG,
         `Server crashed. Restarting in ${delay}ms (Attempt ${this.crashCount}/${gConfig.maxRetries})`,
       );
 
       setTimeout(() => this.start(), delay);
     } else {
-      this.emit("error", "Max retries reached or auto-restart disabled.");
+      this.emit(GuardianEvents.ERROR, "Max retries reached or auto-restart disabled.");
       this.setStatus("OFFLINE");
     }
   }
@@ -194,7 +205,7 @@ export class Guardian extends EventEmitter {
    */
   private async processOutput(
     stream: ReadableStream | null,
-    type: "OUT" | "ERR",
+    type: typeof StreamTypes.STDOUT | typeof StreamTypes.STDERR,
   ) {
     if (!stream) return;
 
@@ -217,37 +228,20 @@ export class Guardian extends EventEmitter {
           buffer = buffer.substring(lineEndIndex + 1); // Lo que sobra se queda en el buffer
 
           if (line) {
-            this.emit("output", line);
-            if (type === "ERR") this.emit("error-log", line);
+            this.emit(GuardianEvents.OUTPUT, line);
+            if (type === StreamTypes.STDERR) this.emit(GuardianEvents.ERROR_LOG, line);
           }
         }
       }
 
       // Procesar remanente si el stream se cierra sin un salto de línea final
       if (buffer.trim()) {
-        this.emit("output", buffer.trim());
+        this.emit(GuardianEvents.OUTPUT, buffer.trim());
       }
     } catch (e) {
       // Ignorar errores de stream cerrado
     } finally {
       reader.releaseLock();
-    }
-  }
-  /**
-   * Registra y carga un plugin
-   */
-  public use(plugin: GuardianPlugin) {
-    if (this.plugins.has(plugin.name)) {
-      console.warn(`Plugin ${plugin.name} ya está registrado.`);
-      return;
-    }
-
-    try {
-      plugin.onLoad(this);
-      this.plugins.set(plugin.name, plugin);
-      this.emit("log", `Plugin loaded: ${plugin.name} v${plugin.version}`);
-    } catch (e) {
-      this.emit("error", `Error loading plugin ${plugin.name}: ${e}`);
     }
   }
   public getConfig(): Config {

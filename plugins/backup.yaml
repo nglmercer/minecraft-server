@@ -1,0 +1,7 @@
+# Backup Plugin Configuration
+cronSchedule: 0 0 4 * * *
+backupPath: ./backups
+maxBackupsToKeep: 5
+timeZone: America/Lima
+compressionLevel: 6
+sourcePath: ./

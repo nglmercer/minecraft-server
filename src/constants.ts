@@ -1,0 +1,332 @@
+/**
+ * Centralized constants for the Guardian Minecraft Server Manager
+ * This file eliminates magic strings and provides type-safe enums
+ */
+
+// ==================== Guardian Events ====================
+/**
+ * Standard events emitted by the Guardian class
+ */
+export const GuardianEvents = {
+  ERROR: "error",
+  STATUS: "status",
+  OUTPUT: "output",
+  LOG: "log",
+  STOPPED: "stopped",
+  PID: "pid",
+  ERROR_LOG: "error-log",
+} as const;
+
+export type GuardianEventType = (typeof GuardianEvents)[keyof typeof GuardianEvents];
+
+// ==================== Guardian Statuses ====================
+/**
+ * Possible states of the Guardian server manager
+ * Note: These match the GuardianStatus type in types.ts
+ */
+export const GuardianStatus = {
+  OFFLINE: "OFFLINE",
+  STARTING: "STARTING",
+  ONLINE: "ONLINE",
+  STOPPING: "STOPPING",
+  CRASHED: "CRASHED",
+} as const;
+
+export type GuardianStatusType = (typeof GuardianStatus)[keyof typeof GuardianStatus];
+
+// ==================== System Signals ====================
+/**
+ * POSIX signals that can be sent to processes
+ */
+export const SystemSignals = {
+  SIGINT: "SIGINT",
+  SIGTERM: "SIGTERM",
+  SIGKILL: "SIGKILL",
+} as const;
+
+export type SystemSignalType = (typeof SystemSignals)[keyof typeof SystemSignals];
+
+// ==================== Console Messages ====================
+/**
+ * Standard console output messages with emojis
+ */
+export const ConsoleMessages = {
+  // Java
+  JAVA_FAILED: "❌ Failed to get or install Java",
+  ERROR_MAIN: "💥 Error in main function:",
+  
+  // Guardian
+  GUARDIAN_ERROR: "❌ Guardian error:",
+  GUARDIAN_STATUS: "📊 Guardian status:",
+  GUARDIAN_LOG: "📝 Guardian log:",
+  GUARDIAN_STOPPED: "⏹️  Guardian stopped:",
+  GUARDIAN_CRASHED: "💥 Server crashed with exit code:",
+  GUARDIAN_SIGINT: "⚠️  Received SIGINT, stopping server...",
+  GUARDIAN_STOPPING: "Stopping server gracefully...",
+  GUARDIAN_HUNG: "Server hung, forcing kill (SIGKILL)...",
+  GUARDIAN_RESTART: "Server crashed. Restarting in {delay}ms (Attempt {current}/{max})",
+  GUARDIAN_MAX_RETRIES: "Max retries reached or auto-restart disabled.",
+  
+  // General
+  CTRL_C: "Ctrl+C to close",
+  ERROR_GENERIC: "error.",
+  LOG_PREFIX: "log:",
+  
+  // Plugin related
+  PLUGIN_LOADED: "Plugin loaded: {name} v{version}",
+  PLUGIN_ALREADY_REGISTERED: "Plugin {name} ya está registrado.",
+  PLUGIN_LOAD_ERROR: "Error loading plugin {name}: {error}",
+} as const;
+
+// ==================== Minecraft Commands ====================
+/**
+ * Minecraft server commands used by plugins
+ */
+export const MinecraftCommands = {
+  // Chat messages (with color codes)
+  SAY_BACKUP_START: "say §e[Guardian] §fIniciando respaldo...",
+  SAY_BACKUP_END: "say §e[Guardian] §fRespaldo finalizado.",
+  
+  // World save commands
+  SAVE_OFF: "save-off",
+  SAVE_ON: "save-on",
+  SAVE_ALL_FLUSH: "save-all flush",
+  SAVE_STOP: "stop",
+} as const;
+
+// ==================== Backup Plugin Constants ====================
+/**
+ * Constants specific to the backup plugin
+ */
+export const BackupPlugin = {
+  NAME: "GuardianBackup",
+  VERSION: "4.0.0",
+  DESCRIPTION: "Sistema de respaldos automáticos usando Bun Archive y Cron",
+  AUTHOR: "Guardian Team",
+  
+  // Default configuration values
+  DEFAULTS: {
+    CRON_SCHEDULE: "0 0 4 * * *", // 4:00 AM daily
+    BACKUP_PATH: "./backups",
+    MAX_BACKUPS: 5,
+    TIME_ZONE: "America/Lima",
+    COMPRESSION_LEVEL: 6,
+    SOURCE_PATH: "./",
+  } as const,
+  
+  // File patterns
+  BACKUP_EXTENSION: ".tar.gz",
+  BACKUP_PREFIX: "backup-",
+  
+  // Log messages
+  LOGS: {
+    CRON_ACTIVE: "Cron activo [{schedule}]. Próximo backup: {date}",
+    CRON_ERROR: "Error al inicializar el CronJob: {error}",
+    BACKUP_START: "♻️ Iniciando respaldo programado...",
+    BACKUP_SUCCESS: "✅ Backup exitoso: {fileName}",
+    BACKUP_ERROR: "Error crítico en backup: {error}",
+    BACKUP_FAILED: "Backup Fallido: {error}",
+    CLEANUP_ERROR: "Error limpiando backups: {error}",
+    BACKUP_DELETED: "🗑️ Eliminado backup antiguo: {name}",
+    CRON_STOPPED: "Cron de backups detenido.",
+  } as const,
+} as const;
+
+// ==================== Config Constants ====================
+/**
+ * Configuration-related constants
+ */
+export const ConfigConstants = {
+  DEFAULT_DIR: "config",
+  DEFAULT_FILE: "config.yaml",
+  DATA_DIR: "data",
+  LOGS_DIR: "logs",
+  BACKUPS_DIR: "backups",
+  SERVER_JAR: "server.jar",
+  JAVA_BIN: "java",
+  PAPER_CORE: "paper",
+  DEFAULT_VERSION: "1.21.1",
+  CHARSET: "utf-8" as BufferEncoding,
+} as const;
+
+// ==================== File Extensions ====================
+/**
+ * Common file extensions used in the project
+ */
+export const FileExtensions = {
+  YAML: ".yaml",
+  YML: ".yml",
+  JSON: ".json",
+  TAR_GZ: ".tar.gz",
+  LOG: ".log",
+  JAR: ".jar",
+} as const;
+
+// ==================== Cron Patterns ====================
+/**
+ * Predefined cron schedules
+ */
+export const CronPatterns = {
+  DAILY_4AM: "0 0 4 * * *",
+  HOURLY: "0 0 * * * *",
+  DAILY_MIDNIGHT: "0 0 0 * * *",
+  WEEKLY: "0 0 0 * * 0",
+} as const;
+
+// ==================== Compression Levels ====================
+/**
+ * Valid compression levels for gzip (1-12)
+ */
+export const CompressionLevels = {
+  MIN: 1,
+  MAX: 12,
+  DEFAULT: 6,
+} as const;
+
+// ==================== Event Names ====================
+/**
+ * Event names used across the system
+ */
+export const EventNames = {
+  SERVER_CORE_EXECUTE: "serverCore:execute",
+} as const;
+
+// ==================== Config Messages ====================
+/**
+ * Configuration-related messages
+ */
+export const ConfigMessages = {
+  FILE_NOT_FOUND: "Config file not found, creating default structure.",
+  FILE_EMPTY: "Config file is empty, using defaults.",
+  FILE_EMPTY_WARN: "⚠️  Config file is empty, using defaults.",
+  YAML_PARSE_ERROR: "YAML parse error, using defaults:",
+  YAML_NOT_OBJECT: "YAML did not parse to an object, using defaults.",
+  ERROR_LOADING: "❌ Error loading config:",
+  CORRUPTED_BACKUP: "Corrupted config backed up to:",
+  BACKUP_FAILED: "Failed to create backup:",
+  COULD_NOT_RESOLVE_PATH: "⚠️  Could not resolve path:",
+  FAILED_CREATE_DIR: "⚠️  Failed to create directory:",
+  SKIP_OUTSIDE_PROJECT: "⚠️  Skipping directory creation for path outside project:",
+  YAML_HEADER: "# Guardian Server Configuration\n# Generated by Guardian Server Manager\n",
+  PLUGIN_CONFIG_CREATED: "Created default backup config at {path}",
+} as const;
+
+// ==================== Guardian Messages ====================
+/**
+ * Guardian-specific messages (non-ConsoleMessages)
+ */
+export const GuardianMessages = {
+  STOPPING: "Stopping server gracefully...",
+  HUNG: "Server hung, forcing kill (SIGKILL)...",
+  UNKNOWN: "Unknown",
+  MANUAL_STOP: "Manual Stop",
+  NORMAL_EXIT: "Normal Exit",
+  CRASH_REASON: (code: number | null) => `Crash (Exit Code ${code ?? "Signal"})`,
+  PLUGIN_ALREADY_REGISTERED: (name: string) => `Plugin ${name} ya está registrado.`,
+  PLUGIN_LOADED: (name: string, version: string) => `Plugin loaded: ${name} v${version}`,
+  PLUGIN_LOAD_ERROR: (name: string, error: unknown) => `Error loading plugin ${name}: ${error}`,
+} as const;
+
+// ==================== Core Service Constants ====================
+/**
+ * Core service constants for server download and EULA
+ */
+export const CoreService = {
+  // EULA constants
+  EULA_HEADER: "#By changing the setting below to TRUE you are indicating your agreement to our EULA (https://aka.ms/MinecraftEULA).",
+  EULA_DATE_PREFIX: "#",
+  EULA_ACCEPT: "eula=true",
+  EULA_DECLINE: "eula=false",
+  
+  // Default server core values
+  DEFAULT_CORE: "paper" as const,
+  DEFAULT_CORE_VERSION: "1.21" as const,
+  
+  // File names
+  EULA_FILE: "eula.txt",
+  JAVA_ZIP_PREFIX: "java-",
+  JAVA_ZIP_EXTENSION: ".zip",
+} as const;
+
+// ==================== Java Service Constants ====================
+/**
+ * Java service console messages
+ */
+export const JavaMessages = {
+  CHECKING: (version: number) => `Checking for Java ${version}...`,
+  FOUND_LOCALLY: (version: number, path: string) => `✅ Found Java ${version} locally: ${path}`,
+  NOT_FOUND: (version: number) => `⬇️ Java ${version} not found locally. Initiating download...`,
+  FAILED_FETCH: "❌ Failed to fetch installable Java versions.",
+  NO_RELEASE: (version: number) => `⚠️ No release found for Java ${version}`,
+  FAILED_DOWNLOAD_INIT: "❌ Failed to initialize download task",
+  DOWNLOAD_PROGRESS: (progress: number) => `\rDownloading: ${progress.toFixed(1)}%`,
+  DOWNLOAD_COMPLETE: "\n✅ Download complete.",
+  DOWNLOAD_FAILED: "\n❌ Download failed:",
+  VERIFYING: "Verifying checksum...",
+  CHECKSUM_FAILED: "❌ Checksum verification failed! The downloaded file may be corrupted.",
+  CHECKSUM_VERIFIED: "✅ Checksum verified.",
+  NO_CHECKSUM: "⚠️  No checksum info found in release, skipping verification.",
+  UNPACKING: "📦 Unpacking Java...",
+  UNPACK_COMPLETE: "✅ Unpack complete.",
+  UNPACK_FAILED: "❌ Unpack failed:",
+  VERIFICATION_FAILED: "❌ Verification failed after installation.",
+} as const;
+
+// ==================== Backup Plugin Paths ====================
+/**
+ * Backup plugin file paths
+ */
+export const BackupPaths = {
+  PLUGIN_CONFIG: "plugins/backup.yaml",
+  CONFIG_HEADER: "# Backup Plugin Configuration",
+} as const;
+
+// ==================== Stream Types ====================
+/**
+ * Stream type identifiers for process output
+ */
+export const StreamTypes = {
+  STDOUT: "OUT",
+  STDERR: "ERR",
+} as const;
+
+export type StreamType = (typeof StreamTypes)[keyof typeof StreamTypes];
+
+// ==================== Spawn Options ====================
+/**
+ * Standard spawn options for child processes
+ */
+export const SpawnOptions = {
+  PIPE: "pipe",
+  INHERIT: "inherit",
+  IGNORE: "ignore",
+} as const;
+
+// ==================== Exit Codes ====================
+/**
+ * Common process exit codes
+ */
+export const ExitCodes = {
+  SUCCESS: 0,
+  SIGINT: 130,
+  SIGTERM: 143,
+} as const;
+
+// ==================== Timeouts ====================
+/**
+ * Standard timeout values in milliseconds
+ */
+export const Timeouts = {
+  GRACEFUL_SHUTDOWN: 10000, // 10 seconds
+  BACKUP_SAVE_DELAY: 3000,  // 3 seconds
+} as const;
+
+// ==================== Error Messages ====================
+/**
+ * Generic error messages
+ */
+export const ErrorMessages = {
+  TIMEOUT: "TIMEOUT",
+  SPAWN_FAILED: "Failed to spawn process",
+  STDIN_WRITE_FAILED: "Failed to write to stdin",
+} as const;

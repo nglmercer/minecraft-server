@@ -2,20 +2,10 @@ import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type { GuardianConfig, ServerConfig } from "./types";
 import { waitForInputOrTimeout } from "./utils/cli";
-
-// --- CONSTANTES PARA EVITAR MAGIC STRINGS ---
-const CONFIG_CONSTANTS = {
-  DEFAULT_DIR: "config",
-  DEFAULT_FILE: "config.yaml",
-  DATA_DIR: "data",
-  LOGS_DIR: "logs",
-  BACKUPS_DIR: "backups",
-  SERVER_JAR: "server.jar",
-  JAVA_BIN: "java",
-  PAPER_CORE: "paper",
-  DEFAULT_VERSION: "1.21.1",
-  CHARSET: "utf-8" as BufferEncoding,
-};
+import {
+  ConfigConstants,
+  ConfigMessages,
+} from "./constants";
 
 export interface AppConfigData {
   server: ServerConfig;
@@ -33,8 +23,8 @@ export class Config {
       this.configPath = path.resolve(customConfigPath);
       this.configDir = path.dirname(this.configPath);
     } else {
-      this.configDir = path.resolve(process.cwd(), CONFIG_CONSTANTS.DEFAULT_DIR);
-      this.configPath = path.resolve(this.configDir, CONFIG_CONSTANTS.DEFAULT_FILE);
+      this.configDir = path.resolve(process.cwd(), ConfigConstants.DEFAULT_DIR);
+      this.configPath = path.resolve(this.configDir, ConfigConstants.DEFAULT_FILE);
     }
     this.data = this.getDefaults();
   }
@@ -53,19 +43,19 @@ export class Config {
 
   public getDefaults(): AppConfigData {
     const rootDir = process.cwd();
-    const dataPath = path.resolve(rootDir, CONFIG_CONSTANTS.DATA_DIR);
+    const dataPath = path.resolve(rootDir, ConfigConstants.DATA_DIR);
 
     return {
       server: {
-        jarPath: CONFIG_CONSTANTS.SERVER_JAR,
-        javaBin: CONFIG_CONSTANTS.JAVA_BIN,
+        jarPath: ConfigConstants.SERVER_JAR,
+        javaBin: ConfigConstants.JAVA_BIN,
         jvmOptions: ["-Xmx2G", "-Xms2G"],
         programArgs: ["nogui"],
         port: 25565,
         cwd: path.join(dataPath, "server"),
         javaVersion: 21,
-        core: CONFIG_CONSTANTS.PAPER_CORE,
-        coreVersion: CONFIG_CONSTANTS.DEFAULT_VERSION,
+        core: ConfigConstants.PAPER_CORE,
+        coreVersion: ConfigConstants.DEFAULT_VERSION,
       },
       guardian: {
         autoRestart: true,
@@ -73,8 +63,8 @@ export class Config {
         retryDelayMs: 5000,
         paths: {
           data: dataPath,
-          logs: path.resolve(rootDir, CONFIG_CONSTANTS.LOGS_DIR),
-          backups: path.resolve(rootDir, CONFIG_CONSTANTS.BACKUPS_DIR),
+          logs: path.resolve(rootDir, ConfigConstants.LOGS_DIR),
+          backups: path.resolve(rootDir, ConfigConstants.BACKUPS_DIR),
         },
       },
     };
@@ -86,7 +76,7 @@ export class Config {
   public loadSync(): AppConfigData {
     try {
       if (!existsSync(this.configPath)) {
-        console.warn("Config file not found, creating default structure.");
+        console.warn(ConfigMessages.FILE_NOT_FOUND);
         this.saveSync();
         // implement a async process or block and await 10 seconds or await user input
       }
@@ -96,7 +86,7 @@ export class Config {
 
       // Handle empty file case
       if (!content.trim()) {
-        console.warn("⚠️  Config file is empty, using defaults.");
+        console.warn(ConfigMessages.FILE_EMPTY_WARN);
         return this.data;
       }
 
@@ -116,11 +106,11 @@ export class Config {
 
         // Ensure we have an object
         if (!parsed || typeof parsed !== "object") {
-          console.warn("⚠️  YAML did not parse to an object, using defaults.");
+          console.warn(ConfigMessages.YAML_NOT_OBJECT);
           parsed = {};
         }
       } catch (yamlError) {
-        console.error("⚠️  YAML parse error, using defaults:", yamlError);
+        console.error(ConfigMessages.YAML_PARSE_ERROR, yamlError);
         console.error(
           "First 100 characters of problematic content:",
           content.substring(0, 100),
@@ -133,16 +123,16 @@ export class Config {
 
       return this.data;
     } catch (e) {
-      console.error("❌ Error loading config:", e);
+      console.error(ConfigMessages.ERROR_LOADING, e);
       // Create a backup of the corrupted file if it exists
       if (existsSync(this.configPath)) {
         const backupPath = `${this.configPath}.corrupted.${Date.now()}`;
         try {
           const fs = require("fs");
           fs.copyFileSync(this.configPath, backupPath);
-          console.error(`🔒 Corrupted config backed up to: ${backupPath}`);
+          console.error(`${ConfigMessages.CORRUPTED_BACKUP} ${backupPath}`);
         } catch (backupError) {
-          console.error("Failed to create backup:", backupError);
+          console.error(ConfigMessages.BACKUP_FAILED, backupError);
         }
       }
       return this.data;
@@ -151,7 +141,7 @@ export class Config {
   public async load(): Promise<AppConfigData> {
     try {
       if (!existsSync(this.configPath)) {
-        console.warn("⚠️  Config file not found, creating default structure.");
+        console.warn(ConfigMessages.FILE_NOT_FOUND);
         this.saveSync();
         
         await waitForInputOrTimeout(
@@ -160,10 +150,10 @@ export class Config {
         );
       }
 
-      const content = readFileSync(this.configPath, CONFIG_CONSTANTS.CHARSET);
+      const content = readFileSync(this.configPath, ConfigConstants.CHARSET);
 
       if (!content.trim()) {
-        console.warn("⚠️  Config file is empty, using defaults.");
+        console.warn(ConfigMessages.FILE_EMPTY_WARN);
         return this.data;
       }
 
@@ -174,14 +164,14 @@ export class Config {
           parsed = parsed.find((doc) => doc && (doc.server || doc.guardian)) || parsed[0] || {};
         }
       } catch (yamlError) {
-        console.error("⚠️  YAML parse error, using defaults.");
+        console.error(ConfigMessages.YAML_PARSE_ERROR);
         parsed = {};
       }
 
       this.data = this.mergeWithDefaults(parsed);
       return this.data;
     } catch (e) {
-      console.error("❌ Error loading config:", e);
+      console.error(ConfigMessages.ERROR_LOADING, e);
       return this.data;
     }
   }
@@ -258,7 +248,7 @@ export class Config {
       try {
         resolvedCwd = path.resolve(this.data.server.cwd);
       } catch (error) {
-        console.warn(`⚠️  Could not resolve path: ${this.data.server.cwd}`);
+        console.warn(`${ConfigMessages.COULD_NOT_RESOLVE_PATH} ${this.data.server.cwd}`);
         return; // Skip directory creation if path resolution fails
       }
 
@@ -267,13 +257,13 @@ export class Config {
           mkdirSync(this.data.server.cwd, { recursive: true });
         } catch (error) {
           console.warn(
-            `⚠️  Failed to create directory: ${this.data.server.cwd}`,
+            `${ConfigMessages.FAILED_CREATE_DIR} ${this.data.server.cwd}`,
             error,
           );
         }
       } else {
         console.warn(
-          `⚠️  Skipping directory creation for path outside project: ${this.data.server.cwd}`,
+          `${ConfigMessages.SKIP_OUTSIDE_PROJECT} ${this.data.server.cwd}`,
         );
       }
     }
@@ -289,7 +279,7 @@ export class Config {
         try {
           resolvedDir = path.resolve(dir);
         } catch (error) {
-          console.warn(`⚠️  Could not resolve path: ${dir}`);
+          console.warn(`${ConfigMessages.COULD_NOT_RESOLVE_PATH} ${dir}`);
           return; // Skip this directory if path resolution fails
         }
 
@@ -298,11 +288,11 @@ export class Config {
           try {
             mkdirSync(dir, { recursive: true });
           } catch (error) {
-            console.warn(`⚠️  Failed to create directory: ${dir}`, error);
+            console.warn(`${ConfigMessages.FAILED_CREATE_DIR} ${dir}`, error);
           }
         } else {
           console.warn(
-            `⚠️  Skipping directory creation for path outside project: ${dir}`,
+            `${ConfigMessages.SKIP_OUTSIDE_PROJECT} ${dir}`,
           );
         }
       }
@@ -317,9 +307,7 @@ export class Config {
     const compactYaml = Bun.YAML.stringify(data);
 
     // Formatear para hacerlo más legible
-    return `# Guardian Server Configuration
-# Generated by Guardian Server Manager
-
+    return `${ConfigMessages.YAML_HEADER}
 ${this.formatYaml(compactYaml)}`;
   }
 
