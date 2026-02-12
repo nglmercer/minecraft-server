@@ -125,13 +125,14 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          name: Release ${{ github.event.inputs.version || github.ref_name }}
           files: |
             artifacts/app-linux/app-linux
             artifacts/app-linux-arm64/app-linux-arm64
             artifacts/app-windows.exe/app-windows.exe
             artifacts/app-macos/app-macos
             artifacts/app-macos-arm64/app-macos-arm64
-          name: Release ${{ github.ref_name || github.event.inputs.version }}
           draft: false
           prerelease: false
         env:
