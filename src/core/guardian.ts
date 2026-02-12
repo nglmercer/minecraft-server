@@ -35,6 +35,18 @@ export class Guardian extends EventEmitter {
 
     // Seguridad: Si el proceso de Node/Bun muere, matar al hijo.
     process.on("beforeExit", () => this.kill());
+
+    // --- Vinculación con Plugins ---
+    // Escuchar comandos enviados por los plugins
+    this.pluginManager.on("server:write", (command: string) => {
+      this.write(command);
+    });
+
+    // Reenviar eventos internos a los plugins
+    this.on(GuardianEvents.OUTPUT, (line) => this.pluginManager.emit("output", line));
+    this.on(GuardianEvents.LOG, (msg) => this.pluginManager.emit("log", msg));
+    this.on(GuardianEvents.ERROR, (err) => this.pluginManager.emit("error", err));
+    this.on(GuardianEvents.STATUS, (status) => this.pluginManager.emit("status", status));
   }
 
   get status() {
@@ -95,10 +107,8 @@ export class Guardian extends EventEmitter {
     return {
       cwd: this.config.server.cwd,
       stdin: SpawnOptions.PIPE,
-      // Usar inherit para preservar colores ANSI del servidor Minecraft
-      // Los colores se muestran directamente en el terminal
-      stdout: SpawnOptions.INHERIT,
-      stderr: SpawnOptions.INHERIT,
+      stdout: SpawnOptions.PIPE,
+      stderr: SpawnOptions.PIPE,
     };
   }
 

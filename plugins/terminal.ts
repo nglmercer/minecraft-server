@@ -35,6 +35,7 @@ export const LogLevels = {
   WARN: "WARN",
   ERROR: "ERROR",
   DEBUG: "DEBUG",
+  STATUS: "STATUS",
 } as const;
 
 type LogLevel = (typeof LogLevels)[keyof typeof LogLevels];
@@ -78,6 +79,8 @@ const getLevelColor = (level: LogLevel): TerminalColorName => {
       return "yellow";
     case LogLevels.DEBUG:
       return "cyan";
+    case LogLevels.STATUS:
+      return "magenta";
     case LogLevels.INFO:
     default:
       return "green";
@@ -126,11 +129,15 @@ class TerminalLogger {
     this.context = context;
   }
 
-  private log(level: LogLevel, message: string, source?: string) {
+  public log(level: LogLevel, message: string, source?: string) {
     const formatted = formatTerminalOutput(level, message, source);
     if (formatted) {
       console.log(formatted);
     }
+  }
+
+  status(message: string, source?: string) {
+    this.log(LogLevels.STATUS, message, source);
   }
 
   info(message: string, source?: string) {
@@ -196,6 +203,11 @@ export class TerminalPlugin implements IPlugin {
     this.context.on("output" as keyof AppEvents, (payload: unknown) => {
       this.handleOutputEvent(payload);
     });
+
+    // Handle status events
+    this.context.on("status" as keyof AppEvents, (payload: unknown) => {
+      this.handleStatusEvent(payload);
+    });
   }
 
   private handleLogEvent(payload: unknown): void {
@@ -219,6 +231,11 @@ export class TerminalPlugin implements IPlugin {
     if (formatted) {
       console.log(formatted);
     }
+  }
+
+  private handleStatusEvent(payload: unknown): void {
+    const status = typeof payload === "string" ? payload : String(payload);
+    this.logger.log(LogLevels.STATUS, `Server status changed to: ${status}`, "Guardian");
   }
 
   /**
