@@ -15,6 +15,7 @@
     "build": "bun build.ts"
   },
   "dependencies": {
+    "arktype": "^2.1.29",
     "bun_plugins": "^1.2.5",
     "cron": "^4.3.5",
     "java-path": "^1.0.7",

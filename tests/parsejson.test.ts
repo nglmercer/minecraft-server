@@ -20,7 +20,7 @@ import {
   createSocketIoEventSchema,
   parseSocketIo42MessageWithSchema,
   ArktypeSchemas
-} from './parsejson';
+} from '../src/utils/parsejson';
 
 describe('parsejson.ts', () => {
   describe('parseSocketIo42Message', () => {

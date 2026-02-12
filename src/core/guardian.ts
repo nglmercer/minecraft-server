@@ -36,10 +36,23 @@ export class Guardian extends EventEmitter {
     // Seguridad: Si el proceso de Node/Bun muere, matar al hijo.
     process.on("beforeExit", () => this.kill());
 
-    // --- Vinculación con Plugins ---
     // Escuchar comandos enviados por los plugins
     this.pluginManager.on("server:write", (command: string) => {
       this.write(command);
+    });
+
+    this.pluginManager.on("server:start", () => {
+      this.start();
+    });
+
+    this.pluginManager.on("server:stop", () => {
+      this.stop();
+    });
+
+    this.pluginManager.on("server:restart", async () => {
+      await this.stop();
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await this.start();
     });
 
     // Reenviar eventos internos a los plugins

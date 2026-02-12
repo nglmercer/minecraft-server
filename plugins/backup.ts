@@ -111,6 +111,13 @@ export class BackupPlugin implements IPlugin {
     this.context = context as MinecraftPluginContext;
     this.loadConfig();
     this.setupCron();
+
+    // Permitir disparar backups manualmente vía eventos
+    this.context.on("backup:create" as any, () => {
+      this.performBackup().catch(err => {
+        this.context.emit("error", `Manual backup failed: ${err}`);
+      });
+    });
   }
 
   onUnload(): void {

@@ -494,3 +494,25 @@ export const ArktypeSchemas = {
     ...Object.fromEntries(requiredKeys.map(key => [key, 'unknown']))
   })
 };
+
+/**
+ * Arktype schemas specifically for the API plugin
+ */
+export const ApiSchemas = {
+  /** Schema for /write endpoint */
+  write: type({
+    command: 'string > 0'
+  }),
+  
+  /** Schema for /write-batch endpoint */
+  writeBatch: type({
+    commands: 'string[] > 0'
+  }),
+  
+  /** Schema for WebSocket command messages */
+  wsCommand: type({
+    type: "'command'",
+    command: 'string > 0'
+  })
+};
+
