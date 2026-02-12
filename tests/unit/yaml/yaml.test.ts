@@ -7,7 +7,7 @@ import {
   readFileSync,
 } from "node:fs";
 import path from "node:path";
-import { Config } from "../../../src/Config";
+import { Config } from "../../../src/services/config.service";
 
 describe("YAML Functionality", () => {
   const testConfigDir = path.join(process.cwd(), "test-yaml-config");

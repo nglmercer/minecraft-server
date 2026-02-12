@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { existsSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { Config } from "../../src/Config";
+import { Config } from "../../src/services/config.service";
 
 // Helper function to create complex YAML for testing
 const createComplexYaml = (): string => `
