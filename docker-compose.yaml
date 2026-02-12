@@ -1,0 +1,18 @@
+services:
+  minecraft-guardian:
+    build: .
+    container_name: minecraft-guardian
+    ports:
+      - "25565:25565" # Minecraft Server
+      - "3000:3000"   # API Control
+      - "9000:9000"   # Libp2p P2P
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./backups:/app/backups
+      - ./config:/app/config
+    environment:
+      - API_PORT=3000
+      - LIBP2P_PORT=9000
+      - LIBP2P_ENABLED=true
+    restart: unless-stopped
