@@ -39,15 +39,10 @@ class P2PGuardianClient {
    * Initialize the libp2p node
    */
   async init(port: number = 9001): Promise<void> {
-    // @ts-ignore - Optional dependency, module may not be installed
     const { createLibp2p } = await import("libp2p");
-    // @ts-ignore - Optional dependency, module may not be installed
     const { tcp } = await import("@libp2p/tcp");
-    // @ts-ignore - Optional dependency, module may not be installed
     const { yamux } = await import("@chainsafe/libp2p-yamux");
-    // @ts-ignore - Optional dependency, module may not be installed
     const { noise } = await import("@chainsafe/libp2p-noise");
-    // @ts-ignore - Optional dependency, module may not be installed
     const { mdns } = await import("@libp2p/mdns");
 
     this.node = await createLibp2p({

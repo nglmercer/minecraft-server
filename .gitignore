@@ -37,3 +37,4 @@ temp/*
 bun.lock
 data/server/*
 dist-build/*
+config/config.yaml
