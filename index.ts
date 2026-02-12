@@ -1,8 +1,8 @@
 //index.ts
-import { getOrInstallJava } from "./src/java.service";
-import { downloadServer } from "./src/core.service";
-import { Guardian } from "./src/guardian";
-import { Config } from "./src/Config";
+import { getOrInstallJava } from "./src/services/java.service";
+import { downloadServer } from "./src/services/core.service";
+import { Guardian } from "./src/core/guardian";
+import { Config } from "./src/services/config.service";
 import { type ServerCore } from "minecraft-core";
 import { BasePluginManager } from "./src/plugins/index";
 import {

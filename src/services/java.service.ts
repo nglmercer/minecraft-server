@@ -3,7 +3,7 @@ import { defaultPaths } from "java-path";
 import { JavaInfoService } from "java-path";
 import { taskManager } from "java-path";
 import path from "path";
-import { JavaMessages, CoreService } from "./constants";
+import { JavaMessages, CoreService } from "../constants";
 
 export async function getOrInstallJava(version = 21) {
   console.log(JavaMessages.CHECKING(version));

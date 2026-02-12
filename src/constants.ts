@@ -83,10 +83,6 @@ export const ConsoleMessages = {
  * Minecraft server commands used by plugins
  */
 export const MinecraftCommands = {
-  // Chat messages (with color codes)
-  SAY_BACKUP_START: "say §e[Guardian] §fIniciando respaldo...",
-  SAY_BACKUP_END: "say §e[Guardian] §fRespaldo finalizado.",
-  
   // World save commands
   SAVE_OFF: "save-off",
   SAVE_ON: "save-on",
@@ -94,43 +90,7 @@ export const MinecraftCommands = {
   SAVE_STOP: "stop",
 } as const;
 
-// ==================== Backup Plugin Constants ====================
-/**
- * Constants specific to the backup plugin
- */
-export const BackupPlugin = {
-  NAME: "GuardianBackup",
-  VERSION: "4.0.0",
-  DESCRIPTION: "Sistema de respaldos automáticos usando Bun Archive y Cron",
-  AUTHOR: "Guardian Team",
-  
-  // Default configuration values
-  DEFAULTS: {
-    CRON_SCHEDULE: "0 0 4 * * *", // 4:00 AM daily
-    BACKUP_PATH: "./backups",
-    MAX_BACKUPS: 5,
-    TIME_ZONE: "America/Lima",
-    COMPRESSION_LEVEL: 6,
-    SOURCE_PATH: "./",
-  } as const,
-  
-  // File patterns
-  BACKUP_EXTENSION: ".tar.gz",
-  BACKUP_PREFIX: "backup-",
-  
-  // Log messages
-  LOGS: {
-    CRON_ACTIVE: "Cron activo [{schedule}]. Próximo backup: {date}",
-    CRON_ERROR: "Error al inicializar el CronJob: {error}",
-    BACKUP_START: "♻️ Iniciando respaldo programado...",
-    BACKUP_SUCCESS: "✅ Backup exitoso: {fileName}",
-    BACKUP_ERROR: "Error crítico en backup: {error}",
-    BACKUP_FAILED: "Backup Fallido: {error}",
-    CLEANUP_ERROR: "Error limpiando backups: {error}",
-    BACKUP_DELETED: "🗑️ Eliminado backup antiguo: {name}",
-    CRON_STOPPED: "Cron de backups detenido.",
-  } as const,
-} as const;
+
 
 // ==================== Config Constants ====================
 /**
@@ -272,14 +232,7 @@ export const JavaMessages = {
   VERIFICATION_FAILED: "❌ Verification failed after installation.",
 } as const;
 
-// ==================== Backup Plugin Paths ====================
-/**
- * Backup plugin file paths
- */
-export const BackupPaths = {
-  PLUGIN_CONFIG: "plugins/backup.yaml",
-  CONFIG_HEADER: "# Backup Plugin Configuration",
-} as const;
+
 
 // ==================== Stream Types ====================
 /**

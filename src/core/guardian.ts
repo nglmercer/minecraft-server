@@ -1,13 +1,13 @@
 import { spawn } from "bun";
 import { EventEmitter } from "node:events";
 import path from "node:path";
-import { Config } from "./Config";
-import { BasePluginManager } from "./plugins";
+import { Config } from "../services/config.service";
+import { BasePluginManager } from "../plugins/index";
 import type {
   GuardianStatus,
   ExitEvent,
   GuardianProcess,
-} from "./types";
+} from "../types/types";
 import {
   GuardianMessages,
   GuardianEvents,
@@ -17,8 +17,8 @@ import {
   ExitCodes,
   Timeouts,
   ErrorMessages,
-} from "./constants";
-import { convertMinecraftColors, supportsColor } from "./utils/colors";
+} from "../constants";
+import { convertMinecraftColors, supportsColor } from "../utils/colors";
 
 export class Guardian extends EventEmitter {
   protected process: GuardianProcess | null = null;

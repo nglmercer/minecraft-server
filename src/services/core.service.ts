@@ -6,9 +6,9 @@ import {
 } from "minecraft-core";
 import { FileUtils } from "java-path";
 import path from "path";
-import { Config } from "./Config";
+import { Config } from "./config.service";
 import { writeFileSync } from "fs";
-import { CoreService } from "./constants";
+import { CoreService } from "../constants";
 
 const manager = new MinecraftServerManager(new NodeAdapter());
 

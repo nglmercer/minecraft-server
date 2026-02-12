@@ -60,11 +60,11 @@ export abstract class BaseService
   async launch(cmd: string[], env: Record<string, string> = {}) {
     try {
       this.proc = Bun.spawn(cmd, {
-        // USAMOS PTY COMO PEDISTE
         terminal: {
-          cols: 80, // Ancho estándar para evitar saltos raros
+          cols: 80,
           rows: 24,
           data: (terminal, rawData) => {
+            
             // Convertimos los bytes crudos a texto
             const text = new TextDecoder().decode(rawData);
             //process.stdout.write(text);

@@ -4,14 +4,63 @@ import { readdir, unlink, stat } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { z, type IPlugin, type PluginContext, type AppEvents } from "bun_plugins";
 import {
-  BackupPlugin as BackupConstants,
   MinecraftCommands,
   FileExtensions,
-  EventNames,
-  BackupPaths,
   ConfigConstants,
   Timeouts,
 } from "../src/constants";
+
+/**
+ * Constants specific to the backup plugin
+ */
+const BackupConstants = {
+  NAME: "GuardianBackup",
+  VERSION: "4.0.0",
+  DESCRIPTION: "Sistema de respaldos automáticos usando Bun Archive y Cron",
+  AUTHOR: "Guardian Team",
+  
+  // Default configuration values
+  DEFAULTS: {
+    CRON_SCHEDULE: "0 0 4 * * *", // 4:00 AM daily
+    BACKUP_PATH: "./backups",
+    MAX_BACKUPS: 5,
+    TIME_ZONE: "America/Lima",
+    COMPRESSION_LEVEL: 6,
+    SOURCE_PATH: "./",
+  } as const,
+  
+  // File patterns
+  BACKUP_PREFIX: "backup-",
+  
+  // Log messages
+  LOGS: {
+    CRON_ACTIVE: "Cron activo [{schedule}]. Próximo backup: {date}",
+    CRON_ERROR: "Error al inicializar el CronJob: {error}",
+    BACKUP_START: "♻️ Iniciando respaldo programado...",
+    BACKUP_SUCCESS: "✅ Backup exitoso: {fileName}",
+    BACKUP_ERROR: "Error crítico en backup: {error}",
+    BACKUP_FAILED: "Backup Fallido: {error}",
+    CLEANUP_ERROR: "Error limpiando backups: {error}",
+    BACKUP_DELETED: "🗑️ Eliminado backup antiguo: {name}",
+    CRON_STOPPED: "Cron de backups detenido.",
+  } as const,
+} as const;
+
+/**
+ * Backup plugin file paths
+ */
+const BackupPaths = {
+  PLUGIN_CONFIG: "plugins/backup.yaml",
+  CONFIG_HEADER: "# Backup Plugin Configuration",
+} as const;
+
+/**
+ * Minecraft server commands used by this plugin
+ */
+const BackupMinecraftCommands = {
+  SAY_BACKUP_START: "say §e[Guardian] §fIniciando respaldo...",
+  SAY_BACKUP_END: "say §e[Guardian] §fRespaldo finalizado.",
+} as const;
 
 /**
  * Extended AppEvents interface for Minecraft-specific events
@@ -133,7 +182,7 @@ sourcePath: ${BackupConstants.DEFAULTS.SOURCE_PATH}
       this.context.emit("log", BackupConstants.LOGS.BACKUP_START);
 
       // Notify and prepare
-      this.context.emit("log", MinecraftCommands.SAY_BACKUP_START);
+      this.context.emit("log", BackupMinecraftCommands.SAY_BACKUP_START);
       this.context.write(MinecraftCommands.SAVE_OFF);
       this.context.write(MinecraftCommands.SAVE_ALL_FLUSH);
       await new Promise(resolve => setTimeout(resolve, Timeouts.BACKUP_SAVE_DELAY));
@@ -168,7 +217,7 @@ sourcePath: ${BackupConstants.DEFAULTS.SOURCE_PATH}
       });
     } finally {
       this.context.write(MinecraftCommands.SAVE_ON);
-      this.context.emit("log", MinecraftCommands.SAY_BACKUP_END);
+      this.context.emit("log", BackupMinecraftCommands.SAY_BACKUP_END);
       this.isBackingUp = false;
     }
   }

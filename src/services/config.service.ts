@@ -1,11 +1,11 @@
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import path from "node:path";
-import type { GuardianConfig, ServerConfig } from "./types";
-import { waitForInputOrTimeout } from "./utils/cli";
+import type { GuardianConfig, ServerConfig } from "../types/types";
+import { waitForInputOrTimeout } from "../utils/cli";
 import {
   ConfigConstants,
   ConfigMessages,
-} from "./constants";
+} from "../constants";
 
 export interface AppConfigData {
   server: ServerConfig;

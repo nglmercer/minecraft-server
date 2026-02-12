@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { ActionRegistryPlugin } from "./register";
 import { ensureDir } from "../utils/filepath";
 /**
- * Gestor de plugins personalizado para TTS
- * Extiende PluginManager para asegurar que el ActionRegistryPlugin esté siempre cargado
+ * Custom plugin manager for Minecraft Server
+ * Extends PluginManager to ensure the ActionRegistryPlugin is always loaded
  */
 export class BasePluginManager extends PluginManager {
   public engine: RuleEngine;

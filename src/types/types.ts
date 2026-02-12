@@ -1,6 +1,6 @@
 import type { Subprocess } from "bun";
 export type GuardianProcess = Subprocess<"pipe" | "inherit", "pipe" | "inherit", "pipe" | "inherit">;
-import type { Guardian } from "./guardian"; // Ajusta el import según tu estructura
+
 
 export type GuardianStatus =
   | "OFFLINE"
