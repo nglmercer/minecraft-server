@@ -1,5 +1,24 @@
-import { createInterface } from "node:readline";
-import { type IPlugin, type PluginContext } from "bun_plugins";
+import { createInterface, type Interface } from "node:readline";
+import { type IPlugin, type PluginContext, type AppEvents } from "bun_plugins";
+
+/**
+ * Extended AppEvents interface for Minecraft-specific events
+ * Uses Omit to override the log property to accept both string and structured formats
+ */
+interface MinecraftAppEvents extends Omit<AppEvents, 'log'> {
+  log: string | { level: "info" | "error" | "warn"; message: string };
+  "server:write": string;
+}
+
+/**
+ * Extended PluginContext interface for Minecraft server integration
+ * Adds the write method to send commands to the Minecraft server
+ */
+interface MinecraftPluginContext extends Omit<PluginContext, 'emit' | 'on'> {
+  write?(command: string): void;
+  emit<K extends keyof MinecraftAppEvents>(event: K, payload: MinecraftAppEvents[K]): void;
+  on<K extends keyof MinecraftAppEvents>(event: K, callback: (payload: MinecraftAppEvents[K]) => void): void;
+}
 
 /**
  * Plugin that provides an interactive console for the Minecraft server.
@@ -11,8 +30,8 @@ export class ConsolePlugin implements IPlugin {
   description = "Allows sending commands to the Minecraft server from the terminal";
   author = "Guardian Team";
 
-  private context!: any;
-  private rl: any;
+  private context!: MinecraftPluginContext;
+  private rl: Interface | null = null;
   private isEnabled = false;
 
   onLoad(context: PluginContext): void {
@@ -44,8 +63,8 @@ export class ConsolePlugin implements IPlugin {
       const command = line.trim();
       if (command && this.isEnabled) {
         // Send to server via event or direct write if available
-        if (typeof (this.context as any).write === "function") {
-          (this.context as any).write(command);
+        if (this.context.write) {
+          this.context.write(command);
         } else {
           this.context.emit("server:write", command);
         }

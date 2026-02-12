@@ -40,13 +40,10 @@ export class ActionRegistryPlugin implements IPlugin {
   }
 
   constructor() {
-    console.log(`${this.name} v${this.version}`);
     this.getSharedApi = this.getSharedApi.bind(this);
   }
 
   onLoad(context: PluginContext) {
-    console.log(`${this.name} v${this.version} onLoad`);
-
     // Registrar helpers básicos por defecto
     this.helperRegistry.register("last", () => {
       return "";
@@ -58,7 +55,6 @@ export class ActionRegistryPlugin implements IPlugin {
   }
 
   onUnload() {
-    console.log(`${this.name} v${this.version} onUnload`);
   }
 
   getSharedApi() {

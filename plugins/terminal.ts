@@ -3,7 +3,7 @@ import type { IPlugin, PluginContext, AppEvents } from "bun_plugins";
 /**
  * Terminal output plugin constants
  */
-export const TerminalPluginConstants = {
+const TerminalPluginConstants = {
   NAME: "terminal-output",
   VERSION: "1.0.0",
   DESCRIPTION: "Terminal output formatting plugin with colors and timestamps",
@@ -13,7 +13,7 @@ export const TerminalPluginConstants = {
 /**
  * ANSI color codes for terminal output
  */
-export const TERMINAL_COLORS = {
+const TERMINAL_COLORS = {
   red: "\x1b[31m",
   green: "\x1b[32m",
   yellow: "\x1b[33m",
@@ -30,7 +30,7 @@ type TerminalColorName = keyof typeof TERMINAL_COLORS;
 /**
  * Log levels for terminal output
  */
-export const LogLevels = {
+const LogLevels = {
   INFO: "INFO",
   WARN: "WARN",
   ERROR: "ERROR",
@@ -170,15 +170,9 @@ export class TerminalPlugin implements IPlugin {
   private context!: PluginContext;
   private logger = TerminalLogger.getInstance();
 
-  constructor() {
-    console.log(this.name + " v" + this.version);
-  }
-
   onLoad(context: PluginContext): void {
     this.context = context;
     this.logger.setContext(context);
-
-    console.log(this.name + " v" + this.version + " onLoad");
 
     // Register event handlers for formatted output
     this.registerEventHandlers();

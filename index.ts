@@ -16,7 +16,7 @@ async function main() {
   try {
     const manager = new BasePluginManager()
     await manager.loadDefaultPlugins();
-    console.log(manager.listPlugins());
+
 
     // Paso 1: Cargar configuración desde archivos YAML
     // La configuración incluye: versiones de Java/core, rutas, puertos, etc.
@@ -51,32 +51,11 @@ async function main() {
     // Guardian gestiona el ciclo de vida del servidor Minecraft
     const guardian = new Guardian(config,manager);
 
-    // Paso 6: Configurar manejadores de eventos ANTES de iniciar
-    // Estos eventos proporcionan información sobre el estado del servidor
+    // Paso 6: Configurar manejadores de eventos esenciales
+    // Los logs generales los maneja el plugin terminal-output
     
-    /** Manejador de errores críticos del Guardian */
-    guardian.on(GuardianEvents.ERROR, (error) => {
-      console.error(ConsoleMessages.GUARDIAN_ERROR, error);
-    });
-
-    /** Manejador de cambios de estado del servidor */
-    guardian.on(GuardianEvents.STATUS, (status) => {
-      console.log(ConsoleMessages.GUARDIAN_STATUS, status);
-    });
-
-    /** Manejador de salida del servidor (logs del juego) */
-    guardian.on(GuardianEvents.OUTPUT, (message) => {
-      console.log(ConsoleMessages.LOG_PREFIX, message);
-    });
-
-    /** Manejador de logs internos del Guardian */
-    guardian.on(GuardianEvents.LOG, (message) => {
-      console.log(ConsoleMessages.GUARDIAN_LOG, message);
-    });
-
     /** Manejador de detención del servidor (normal o por crash) */
     guardian.on(GuardianEvents.STOPPED, (event) => {
-      console.log(ConsoleMessages.GUARDIAN_STOPPED, event.reason);
       if (event.isCrash) {
         console.error(ConsoleMessages.GUARDIAN_CRASHED, event.code);
       }
