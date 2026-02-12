@@ -66,6 +66,10 @@ export class Config {
           logs: path.resolve(rootDir, ConfigConstants.LOGS_DIR),
           backups: path.resolve(rootDir, ConfigConstants.BACKUPS_DIR),
         },
+        tunnel: {
+          enabled: false,
+          port: 25565,
+        },
       },
     };
   }
@@ -344,6 +348,12 @@ ${this.formatYaml(compactYaml)}`;
     result += `    data: "${this.escapeYamlValue(parsed.guardian.paths.data)}"\n`;
     result += `    logs: "${this.escapeYamlValue(parsed.guardian.paths.logs)}"\n`;
     result += `    backups: "${this.escapeYamlValue(parsed.guardian.paths.backups)}"\n`;
+    result += "  tunnel:\n";
+    result += `    enabled: ${parsed.guardian.tunnel.enabled}\n`;
+    result += `    port: ${parsed.guardian.tunnel.port}\n`;
+    if (parsed.guardian.tunnel.token) {
+      result += `    token: "${this.escapeYamlValue(parsed.guardian.tunnel.token)}"\n`;
+    }
 
     return result;
   }

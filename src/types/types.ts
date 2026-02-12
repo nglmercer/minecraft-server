@@ -37,6 +37,11 @@ export interface GuardianConfig {
     data: string;
     [key: string]: string;
   };
+  tunnel: {
+    enabled: boolean;
+    port: number;
+    token?: string;
+  };
 }
 
 export interface SystemStats {

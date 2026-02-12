@@ -64,8 +64,21 @@ const cleanAnsiOutput = (message: string): string | null => {
   clean = clean.trim();
 
   if (clean.length === 0) return null;
-
   return clean;
+};
+
+/**
+ * Strips redundant Minecraft server log headers (timestamp and level)
+ * to avoid duplication with the plugin's own formatting.
+ */
+const stripMinecraftHeader = (message: string): string => {
+  // Matches patterns like [16:48:43 INFO]: or [16:48:43] [Server thread/INFO]:
+  // and variations without brackets or with different level formats.
+  return message
+    .replace(/^\[\d{2}:\d{2}:\d{2} [A-Z]+\]:\s*/, "")
+    .replace(/^\[\d{2}:\d{2}:\d{2}\] \[.*?\/[A-Z]+\]:\s*/, "")
+    .replace(/^\d{2}:\d{2}:\d{2} \[.*?\/[A-Z]+\]\s*/, "")
+    .replace(/^\[\d{2}:\d{2}:\d{2}\]\s+\[.*?\]:\s*/, "");
 };
 
 /**
@@ -95,8 +108,13 @@ const formatTerminalOutput = (
   message: string,
   source?: string
 ): string | null => {
-  const cleanedMessage = cleanAnsiOutput(message);
+  let cleanedMessage = cleanAnsiOutput(message);
   if (!cleanedMessage) return null;
+
+  // If the source is the Minecraft server, strip its own redundant header
+  if (source === "Server") {
+    cleanedMessage = stripMinecraftHeader(cleanedMessage);
+  }
 
   const timestamp = new Date().toLocaleTimeString();
   const color = getLevelColor(level);
@@ -104,9 +122,9 @@ const formatTerminalOutput = (
   const reset = TERMINAL_COLORS.reset;
 
   if (source) {
-    return ansi + "[" + timestamp + "] [" + level + "] [" + source + "]" + reset + " " + cleanedMessage;
+    return ansi + "[" + timestamp + "][" + source + "]" + reset + " " + cleanedMessage;
   }
-  return ansi + "[" + timestamp + "] [" + level + "]" + reset + " " + cleanedMessage;
+  return ansi + "[" + timestamp + "]" + reset + " " + cleanedMessage;
 };
 
 /**
@@ -179,7 +197,6 @@ export class TerminalPlugin implements IPlugin {
   }
 
   onUnload(): void {
-    console.log(this.name + " v" + this.version + " onUnload");
   }
 
   private registerEventHandlers(): void {
@@ -233,18 +250,35 @@ export class TerminalPlugin implements IPlugin {
   }
 
   /**
-   * Detect log level from Minecraft server log message
+   * Detect log level from Minecraft server log message.
+   * Prioritizes formal Minecraft log headers, then falls back to keyword matching.
    */
   private detectLogLevel(message: string): LogLevel {
-    if (message.includes("[WARN]") || message.includes("WARN") || message.includes("Warning")) {
-      return LogLevels.WARN;
+    // Try to find status in formal MC header like [12:34:56 INFO]:
+    const mcHeaderMatch = message.match(/\[\d{2}:\d{2}:\d{2} ([A-Z]+)\]/);
+    if (mcHeaderMatch?.[1]) {
+      const levelStr = mcHeaderMatch[1].toUpperCase();
+      if (levelStr === "WARN" || levelStr === "WARNING") return LogLevels.WARN;
+      if (levelStr === "ERROR" || levelStr === "SEVERE" || levelStr === "FATAL") return LogLevels.ERROR;
+      if (levelStr === "DEBUG") return LogLevels.DEBUG;
+      if (levelStr === "INFO") return LogLevels.INFO;
     }
-    if (message.includes("[ERROR]") || message.includes("ERROR") || message.includes("Error")) {
-      return LogLevels.ERROR;
+
+    // Try to find status in thread-style header like [12:34:56] [Server thread/INFO]:
+    const threadMatch = message.match(/\[\d{2}:\d{2}:\d{2}\] \[.*?\/([A-Z]+)\]/);
+    if (threadMatch?.[1]) {
+      const levelStr = threadMatch[1].toUpperCase();
+      if (levelStr === "WARN" || levelStr === "WARNING") return LogLevels.WARN;
+      if (levelStr === "ERROR" || levelStr === "SEVERE") return LogLevels.ERROR;
+      if (levelStr === "DEBUG") return LogLevels.DEBUG;
     }
-    if (message.includes("[DEBUG]") || message.includes("DEBUG")) {
-      return LogLevels.DEBUG;
-    }
+
+    // Keyword fallback
+    const upper = message.toUpperCase();
+    if (upper.includes("WARN") || upper.includes("WARNING")) return LogLevels.WARN;
+    if (upper.includes("ERROR") || upper.includes("EXCEPTION") || upper.includes("SEVERE")) return LogLevels.ERROR;
+    if (upper.includes("DEBUG")) return LogLevels.DEBUG;
+    
     return LogLevels.INFO;
   }
 

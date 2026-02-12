@@ -19,7 +19,6 @@ class HelperRegistry {
 
   register(name: string, fn: Function) {
     this.helpers[name] = fn;
-    console.log(`[HelperRegistry] Helper registrado: ${name}`);
   }
 
   getHelpers() {
