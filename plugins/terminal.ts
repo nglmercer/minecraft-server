@@ -222,8 +222,25 @@ export class TerminalPlugin implements IPlugin {
   }
 
   private handleLogEvent(payload: unknown): void {
-    const message = typeof payload === "string" ? payload : String(payload);
-    this.logger.info(message, "System");
+    let message: string;
+    let level: LogLevel = LogLevels.INFO;
+
+    if (typeof payload === "string") {
+      message = payload;
+    } else if (payload && typeof payload === "object") {
+      const p = payload as any;
+      message = p.message ? String(p.message) : JSON.stringify(payload);
+      if (p.level) {
+        const pLevel = String(p.level).toUpperCase();
+        if (Object.values(LogLevels).includes(pLevel as any)) {
+          level = pLevel as LogLevel;
+        }
+      }
+    } else {
+      message = String(payload);
+    }
+    
+    this.logger.log(level, message, "System");
   }
 
   private handleErrorEvent(payload: unknown): void {

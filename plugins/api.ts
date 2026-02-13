@@ -5,12 +5,7 @@ import { ApiSchemas } from "../src/utils/parsejson";
 import { type } from "arktype";
 import { type Server, type ServerWebSocket } from "bun";
 
-// Interface for the stream as used in the code (read/write/close)
-interface NetworkStream {
-  read(): Promise<Uint8Array | null>;
-  write(data: Uint8Array | Buffer): Promise<void>;
-  close(): void;
-}
+import { wrapStream, type NetworkStream } from "./network/p2p";
 
 // P2P API Request/Response types
 type P2PRequest = 
@@ -103,8 +98,10 @@ export class ApiPlugin implements IPlugin {
 
       // Register P2P protocol handler for Guardian API
       node.handle("/guardian-api/1.0.0", async (incoming: any) => {
-        const stream: NetworkStream = incoming.stream || incoming;
         try {
+          // Wrapped stream for unified interaction
+          const stream: NetworkStream = wrapStream(incoming.stream || incoming);
+          
           // Read request: accumulate data until newline
           let buffer = Buffer.alloc(0);
           let requestText: string | null = null;
@@ -122,7 +119,7 @@ export class ApiPlugin implements IPlugin {
 
           if (!requestText) {
             await stream.write(Buffer.from(JSON.stringify({ success: false, error: "Invalid request" }) + "\n"));
-            stream.close();
+            await stream.close();
             return;
           }
 
@@ -139,7 +136,7 @@ export class ApiPlugin implements IPlugin {
           // Write response as JSON with newline
           const responseBuffer = Buffer.from(JSON.stringify(response) + "\n");
           await stream.write(responseBuffer);
-          stream.close();
+          await stream.close();
         } catch (error: unknown) {
           const message = error instanceof Error ? error.message : String(error);
           this.context.emit("log", { level: "error", message: `Error handling P2P request: ${message}` });
