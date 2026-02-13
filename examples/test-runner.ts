@@ -50,7 +50,7 @@ async function main() {
 
   async function runTests() {
     try {
-      const test = spawn(["bun", "./examples/localhost-test.ts"], {
+      const test = spawn(["bun", "./examples/p2plib-client.ts"], {
         stdout: "inherit",
         stderr: "inherit"
       });

@@ -227,13 +227,28 @@ export class TerminalPlugin implements IPlugin {
 
     if (typeof payload === "string") {
       message = payload;
+    } else if (payload instanceof Error) {
+      message = payload.stack || payload.message;
+      level = LogLevels.ERROR;
     } else if (payload && typeof payload === "object") {
       const p = payload as any;
-      message = p.message ? String(p.message) : JSON.stringify(payload);
+      
+      // Extract level if present
       if (p.level) {
         const pLevel = String(p.level).toUpperCase();
         if (Object.values(LogLevels).includes(pLevel as any)) {
           level = pLevel as LogLevel;
+        }
+      }
+
+      // Extract message
+      if (p.message !== undefined) {
+        message = typeof p.message === "object" ? JSON.stringify(p.message, null, 2) : String(p.message);
+      } else {
+        try {
+          message = JSON.stringify(payload, null, 2);
+        } catch (e) {
+          message = String(payload);
         }
       }
     } else {
@@ -244,7 +259,18 @@ export class TerminalPlugin implements IPlugin {
   }
 
   private handleErrorEvent(payload: unknown): void {
-    const message = typeof payload === "string" ? payload : String(payload);
+    let message: string;
+    if (payload instanceof Error) {
+      message = payload.stack || payload.message;
+    } else if (typeof payload === "object" && payload !== null) {
+      try {
+        message = JSON.stringify(payload, null, 2);
+      } catch (e) {
+        message = String(payload);
+      }
+    } else {
+      message = String(payload);
+    }
     this.logger.error(message, "Error");
   }
 
