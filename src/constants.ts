@@ -105,7 +105,7 @@ export const ConfigConstants = {
   SERVER_JAR: "server.jar",
   JAVA_BIN: "java",
   PAPER_CORE: "paper",
-  DEFAULT_VERSION: "1.21.1",
+  DEFAULT_VERSION: "1.21.11",
   CHARSET: "utf-8" as BufferEncoding,
 } as const;
 

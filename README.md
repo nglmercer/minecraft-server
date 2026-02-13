@@ -58,7 +58,7 @@ On first run, the Guardian will:
 
 1. Load `config/config.yaml`.
 2. Check if the specified Java version is installed. If not, it downloads the correct JDK and **verifies its checksum**.
-3. Download the requested Minecraft server core (e.g., Paper 1.21.1) and **accept the EULA**.
+3. Download the requested Minecraft server core (e.g., Paper 1.21.11) and **accept the EULA**.
 4. Launch the Minecraft server and begin monitoring the process.
 
 ---

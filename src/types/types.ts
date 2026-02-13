@@ -24,7 +24,7 @@ export interface ServerConfig {
   cwd: string; // Directorio de trabajo
   javaVersion: number; // Preferred Java version (e.g., 21)
   core: string; // Preferred server core (e.g., "paper")
-  coreVersion: string; // Preferred core version (e.g., "1.21.1")
+  coreVersion: string; // Preferred core version (e.g., "1.21.11")
 }
 
 export interface GuardianConfig {
