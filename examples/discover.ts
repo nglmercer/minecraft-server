@@ -112,13 +112,12 @@ export async function discoverAllServers(timeoutMs: number = 10000): Promise<Dis
 export async function discoverServer(timeoutMs: number = 10000): Promise<DiscoveredPeer> {
   const found = await discoverAllServers(timeoutMs);
   
-  
-  // 2. Fallback to local
-  const local = found.find(p => p.isLocal);
-  if (local) return local;
   // 1. Prefer other remote servers
   const remote = found.find(p => !p.isLocal);
   if (remote) return remote;
+  // 2. Fallback to local
+  const local = found.find(p => p.isLocal);
+  if (local) return local;
   
   throw new Error("Discovery timeout: No server found on the network");
 }
