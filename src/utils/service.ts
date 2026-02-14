@@ -46,6 +46,14 @@ export abstract class BaseService extends EventEmitter implements AsyncDisposabl
   async launch(cmd: string[], env: Record<string, string> = {}) {
     try {
       this.proc = Bun.spawn(cmd, {
+        terminal: {
+          cols: 80,
+          rows: 24,
+          data: (terminal, rawData) => {
+            const text = new TextDecoder().decode(rawData);
+            this.handlePtyData(text);
+          },
+        },
         stdout: "pipe",
         stderr: "pipe",
         stdin: "pipe",
@@ -58,15 +66,6 @@ export abstract class BaseService extends EventEmitter implements AsyncDisposabl
         },
       });
       
-      // Handle stdout
-      this.proc.stdout?.text().then((text) => {
-        if (text) this.handlePtyData(text);
-      });
-      
-      // Handle stderr
-      this.proc.stderr?.text().then((text) => {
-        if (text) this.handlePtyData(text);
-      });
     } catch (err) {
       const msg = `Fallo al iniciar: ${err instanceof Error ? err.message : String(err)}`;
       console.error(formatLog(this.name, "red", msg));

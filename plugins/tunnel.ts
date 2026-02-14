@@ -58,16 +58,7 @@ class PlayitService extends BaseService {
     // Skip empty lines
     const trimmed = line.trim();
     if (!trimmed) return null;
-    
-    // Skip terminal UI elements
-    if (trimmed.includes("j/k Scroll") || 
-        trimmed.includes("Tab Switch Panel") ||
-        trimmed.includes("g/G Top/Bottom") ||
-        trimmed.includes("q Quit") ||
-        trimmed.includes("no command provided")) {
-      return null;
-    }
-    
+
     // Extract claim URL
     if (line.includes("https://playit.gg/claim/")) {
       const match = line.match(/https:\/\/playit\.gg\/claim\/[a-zA-Z0-9]+/);
@@ -77,21 +68,16 @@ class PlayitService extends BaseService {
       }
     }
     
-    // Extract other useful info
-    if (line.includes("Visit link to setup")) {
-      return null; // We already handle this above
-    }
-    
     if (line.includes("connected") || line.includes("tunnel running") || line.includes("tunnel is ready")) {
-      return `✅ ${trimmed}`;
+      return `[info] ${trimmed}`;
     }
     
     if (line.includes("error") || line.includes("failed")) {
-      return `❌ ${trimmed}`;
+      return `[error] ${trimmed}`;
     }
     
     if (line.includes("warning")) {
-      return `⚠️  ${trimmed}`;
+      return `[warn] ${trimmed}`;
     }
     
     // Return cleaned message
