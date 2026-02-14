@@ -68,16 +68,15 @@ const BackupMinecraftCommands = {
  */
 interface MinecraftAppEvents extends Omit<AppEvents, 'log'> {
   log: string | { level: "info" | "error" | "warn"; message: string };
+  "server:write": string;
   error: string;
   output: string;
 }
 
 /**
  * Extended PluginContext interface for Minecraft server integration
- * Adds the write method to send commands to the Minecraft server
  */
 interface MinecraftPluginContext extends Omit<PluginContext, 'emit' | 'on'> {
-  write(command: string): void;
   emit<K extends keyof MinecraftAppEvents>(event: K, payload: MinecraftAppEvents[K]): void;
   on<K extends keyof MinecraftAppEvents>(event: K, callback: (payload: MinecraftAppEvents[K]) => void): void;
 }
@@ -190,8 +189,8 @@ sourcePath: ${BackupConstants.DEFAULTS.SOURCE_PATH}
 
       // Notify and prepare
       this.context.emit("log", BackupMinecraftCommands.SAY_BACKUP_START);
-      this.context.write(MinecraftCommands.SAVE_OFF);
-      this.context.write(MinecraftCommands.SAVE_ALL_FLUSH);
+      this.context.emit("server:write", MinecraftCommands.SAVE_OFF);
+      this.context.emit("server:write", MinecraftCommands.SAVE_ALL_FLUSH);
       await new Promise(resolve => setTimeout(resolve, Timeouts.BACKUP_SAVE_DELAY));
 
       // Scan files
@@ -223,7 +222,8 @@ sourcePath: ${BackupConstants.DEFAULTS.SOURCE_PATH}
         message: BackupConstants.LOGS.BACKUP_FAILED.replace("{error}", String(error)) 
       });
     } finally {
-      this.context.write(MinecraftCommands.SAVE_ON);
+      // Re-enable auto-saving
+      this.context.emit("server:write", MinecraftCommands.SAVE_ON);
       this.context.emit("log", BackupMinecraftCommands.SAY_BACKUP_END);
       this.isBackingUp = false;
     }

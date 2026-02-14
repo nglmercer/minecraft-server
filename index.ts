@@ -14,15 +14,17 @@ import {
 
 async function main() {
   try {
-    const manager = new BasePluginManager()
-    await manager.loadDefaultPlugins();
-
-
     // Paso 1: Cargar configuración desde archivos YAML
     // La configuración incluye: versiones de Java/core, rutas, puertos, etc.
+    // IMPORTANTE: Cargar config ANTES de cargar plugins porque algunos plugins
+    // necesitan la configuración disponible en su método onLoad()
     const config = Config.getInstance();
     await config.load();
-    // Paso 2: Verificar/instalar Java con la versión especificada en config
+
+    // Paso 2: Cargar plugins
+    const manager = new BasePluginManager()
+    await manager.loadDefaultPlugins();
+    // Paso 3: Verificar/instalar Java con la versión especificada en config
     // Si Java no está instalado, se descarga e instala automáticamente
     const result_java = await getOrInstallJava(config.server.javaVersion);
     
@@ -32,7 +34,7 @@ async function main() {
       return null;
     }
 
-    // Paso 3: Descargar el núcleo del servidor (Paper, Spigot, etc.)
+    // Paso 4: Descargar el núcleo del servidor (Paper, Spigot, etc.)
     // Se descarga según la versión y tipo especificados en la configuración
     const coreInfo = await downloadServer({
       version: config.server.coreVersion,
@@ -40,18 +42,18 @@ async function main() {
       // filename: se puede especificar un nombre personalizado para el JAR
     });
 
-    // Paso 4: Actualizar la configuración con las rutas descubiertas
+    // Paso 5: Actualizar la configuración con las rutas descubiertas
     // Se actualizan las rutas de Java y el JAR del servidor
     config.updateServer({
       javaBin: result_java.findResult?.javaExecutable!,
       jarPath: coreInfo.path,
     });
 
-    // Paso 5: Inicializar el sistema
+    // Paso 6: Inicializar el sistema
     // Guardian gestiona el ciclo de vida del servidor Minecraft
     const guardian = new Guardian(config,manager);
 
-    // Paso 6: Configurar manejadores de eventos esenciales
+    // Paso 7: Configurar manejadores de eventos esenciales
     // Los logs generales los maneja el plugin terminal-output
     
     /** Manejador de detención del servidor (normal o por crash) */
@@ -61,10 +63,10 @@ async function main() {
       }
     });
 
-    // Paso 7: Iniciar el servidor Minecraft
+    // Paso 8: Iniciar el servidor Minecraft
     await guardian.start();
 
-    // Paso 8: Configurar manejo de señales del sistema
+    // Paso 9: Configurar manejo de señales del sistema
     // Captura SIGINT (Ctrl+C) para apagar el servidor gracefulmente
     process.on(SystemSignals.SIGINT, async () => {
       console.log(ConsoleMessages.GUARDIAN_SIGINT);

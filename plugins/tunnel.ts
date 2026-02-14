@@ -79,7 +79,8 @@ export class TunnelPlugin implements IPlugin {
       this.service.start().then(() => {
         this.context.emit("log", {message: "Tunnel is active and running!", level: "info"});
       }).catch(err => {
-        this.context.emit("error", {message: `Tunnel failed to start: ${err.message}`, level: "error"});
+        // Don't crash the app if tunnel fails to start
+        this.context.emit("log", {message: `Tunnel background service warning: ${err.message}`, level: "warn"});
       });
 
       // Registrar manejadores de control
@@ -95,7 +96,8 @@ export class TunnelPlugin implements IPlugin {
       });
 
     } catch (err: any) {
-      this.context.emit("error", {message: `Failed to initialize tunnel: ${err.message}`, level: "error"});
+      // Log error but don't crash - tunnel is optional
+      this.context.emit("log", {message: `Tunnel skipped: ${err.message}`, level: "warn"});
     }
   }
 

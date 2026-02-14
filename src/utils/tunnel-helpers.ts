@@ -67,18 +67,35 @@ export class BinaryManager {
     const client = new GitHubAPIClient("playit-cloud/playit-agent", { token: this.token });
     const release = await client.fetchLatestRelease();
     
-    const asset = release.assets.find(a => {
+    // Try multiple patterns for more flexible matching
+    const patterns = [
+      (name: string) => name.includes(prefix) && name.includes(playitArch) && !name.includes("signed") && !name.includes("debug"),
+      // Fallback: just look for the prefix
+      (name: string) => name.toLowerCase().startsWith(prefix) && !name.includes("signed") && !name.includes("debug"),
+    ];
+    
+    let asset = release.assets.find(a => {
       const name = a.name.toLowerCase();
-      return name.includes(prefix) && name.includes(playitArch) && !name.includes("signed") && !name.includes("debug");
+      return patterns.some(pattern => pattern(name));
     });
 
-    if (!asset) throw new Error(`No compatible binary found for ${platform}/${arch}`);
+    if (!asset) throw new Error(`No compatible binary found for ${platform}/${arch}. Checked for ${prefix}${playitArch}`);
 
     const binaryPath = path.join(this.dataDir, platform === "win32" ? "playit.exe" : "playit");
 
-    if (existsSync(binaryPath)) {
-      const stats = statSync(binaryPath);
-      if (stats.size === asset.size) return binaryPath;
+    // Check for existing binary - try multiple possible filenames
+    const possibleNames = platform === "win32" 
+      ? ["playit.exe"] 
+      : ["playit", `playit-${platform}-${playitArch}`, `playit-${platform}-${arch}`, `playit-linux-${playitArch}`];
+    
+    for (const name of possibleNames) {
+      const checkPath = path.join(this.dataDir, name);
+      if (existsSync(checkPath)) {
+        const stats = statSync(checkPath);
+        // If we have asset info, verify size; otherwise just return existing
+        if (asset && stats.size === asset.size) return checkPath;
+        if (!asset) return checkPath;
+      }
     }
 
     const data = await client.downloadBlob(asset.browser_download_url);
