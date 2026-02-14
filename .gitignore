@@ -38,3 +38,4 @@ bun.lock
 data/server/*
 dist-build/*
 config/config.yaml
+data/playit/playit

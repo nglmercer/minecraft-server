@@ -3,13 +3,25 @@ import { BaseService } from "../src/utils/service";
 import { BinaryManager } from "../src/utils/tunnel-helpers";
 import { Config } from "../src/services/config.service";
 import path from "path";
+import { existsSync, readFileSync } from "fs";
+
+/**
+ * Playit config structure
+ * The playit.gg agent stores its configuration in config.json
+ */
+interface PlayitConfig {
+  secret?: string;
+  tunnel_secret?: string;
+  account_secret?: string;
+}
 
 class PlayitService extends BaseService {
   public readonly name = "PLAYIT";
   public readonly themeColor = "magenta";
   private readyResolver?: (v: boolean) => void;
+  public claimUrl?: string;
 
-  constructor(private binaryPath: string, private dataDir: string) {
+  constructor(private binaryPath: string, private dataDir: string, private token?: string) {
     super();
   }
 
@@ -18,23 +30,94 @@ class PlayitService extends BaseService {
       this.readyResolver = resolve;
     });
 
-    await this.launch([this.binaryPath], {
+    // Build command args
+    const args: string[] = [];
+    
+    // If we have a token, try to use it
+    if (this.token) {
+      args.push("--token", this.token);
+    }
+    
+    // Add config path if exists
+    const configPath = path.join(this.dataDir, "config.json");
+    if (existsSync(configPath)) {
+      args.push("--config", configPath);
+    }
+
+    await this.launch([this.binaryPath, ...args], {
       PLAYIT_DATA_DIR: this.dataDir,
     });
 
     return waitReady;
   }
 
+  /**
+   * Clean and parse playit output to extract meaningful messages
+   */
+  private parseOutput(line: string): string | null {
+    // Skip empty lines
+    const trimmed = line.trim();
+    if (!trimmed) return null;
+    
+    // Skip terminal UI elements
+    if (trimmed.includes("j/k Scroll") || 
+        trimmed.includes("Tab Switch Panel") ||
+        trimmed.includes("g/G Top/Bottom") ||
+        trimmed.includes("q Quit") ||
+        trimmed.includes("no command provided")) {
+      return null;
+    }
+    
+    // Extract claim URL
+    if (line.includes("https://playit.gg/claim/")) {
+      const match = line.match(/https:\/\/playit\.gg\/claim\/[a-zA-Z0-9]+/);
+      if (match) {
+        this.claimUrl = match[0];
+        return `🔗 Setup URL: ${this.claimUrl}`;
+      }
+    }
+    
+    // Extract other useful info
+    if (line.includes("Visit link to setup")) {
+      return null; // We already handle this above
+    }
+    
+    if (line.includes("connected") || line.includes("tunnel running") || line.includes("tunnel is ready")) {
+      return `✅ ${trimmed}`;
+    }
+    
+    if (line.includes("error") || line.includes("failed")) {
+      return `❌ ${trimmed}`;
+    }
+    
+    if (line.includes("warning")) {
+      return `⚠️  ${trimmed}`;
+    }
+    
+    // Return cleaned message
+    return trimmed;
+  }
+
   protected handleLogic(line: string): void {
     const lower = line.toLowerCase();
+    
+    // Detect successful connection
     if (
       lower.includes("tunnel running") ||
       lower.includes("connected") ||
-      lower.includes("http server listening")
+      lower.includes("http server listening") ||
+      lower.includes("tunnel is ready")
     ) {
       this.readyResolver?.(true);
       this.readyResolver = undefined;
     }
+  }
+  
+  /**
+   * Get cleaned output for broadcasting
+   */
+  getCleanOutput(line: string): string | null {
+    return this.parseOutput(line);
   }
 }
 
@@ -65,10 +148,36 @@ export class TunnelPlugin implements IPlugin {
       const binaryManager = new BinaryManager(dataDir, tunnelConfig.token);
       const binaryPath = await binaryManager.ensureBinary();
 
-      this.service = new PlayitService(binaryPath, dataDir);
+      // Check for existing config
+      const configPath = path.join(dataDir, "config.json");
+      let existingToken = tunnelConfig.token;
+      
+      if (!existingToken && existsSync(configPath)) {
+        try {
+          const playitConfig = JSON.parse(readFileSync(configPath, "utf-8")) as PlayitConfig;
+          existingToken = playitConfig.secret || playitConfig.tunnel_secret;
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+
+      this.service = new PlayitService(binaryPath, dataDir, existingToken);
       
       this.service.on("data", (msg) => {
-        this.context.emit("log", msg);
+        // Check for claim URL in the output
+        if (this.service?.claimUrl) {
+          this.context.emit("log", { 
+            message: `TUNNEL SETUP REQUIRED: Visit ${this.service.claimUrl} to authenticate`, 
+            level: "warn" 
+          });
+          this.service.claimUrl = undefined; // Only show once
+        }
+        
+        // Use cleaned output if available
+        const cleanMsg = this.service?.getCleanOutput?.(msg);
+        if (cleanMsg) {
+          this.context.emit("log", { level: "info", message: cleanMsg });
+        }
       });
 
       this.service.on("error", (msg) => {
