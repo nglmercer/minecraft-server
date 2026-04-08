@@ -19,7 +19,7 @@ export class ApiPlugin implements IPlugin {
   private router: ApiRouter = new ApiRouter();
 
   // Environment configuration
-  private readonly PORT = process.env.API_PORT ? parseInt(process.env.API_PORT) : 3000;
+  private readonly PORT = process.env.API_PORT ? parseInt(process.env.API_PORT) : 9091;
 
   onLoad(context: PluginContext): void {
     this.context = context;
@@ -136,7 +136,7 @@ export class ApiPlugin implements IPlugin {
       },
     });
 
-    this.context.emit("log", { level: "info", message: `API Server started on http://localhost:${port}` });
+    this.context.log.info(`API Server started on http://localhost:${port}`);
   }
 
   private handleWsMessage(ws: ServerWebSocket<undefined>, data: unknown): void {

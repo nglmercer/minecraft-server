@@ -21,13 +21,13 @@ async function testRouter() {
   });
 
   // Simulate Request
-  const req1 = new Request("http://localhost:3000/test", { method: "GET" });
+  const req1 = new Request("http://localhost:9091/test", { method: "GET" });
   const res1 = await router.handle(req1);
   const data1 = await res1?.json();
   console.log("GET /test result:", data1);
   console.log("Middleware called:", middlewareCalled);
 
-  const req2 = new Request("http://localhost:3000/echo", { 
+  const req2 = new Request("http://localhost:9091/echo", { 
     method: "POST", 
     body: JSON.stringify({ hello: "world" }),
     headers: { "Content-Type": "application/json" }
@@ -37,7 +37,7 @@ async function testRouter() {
   console.log("POST /echo result:", data2);
 
   // Error case
-  const req3 = new Request("http://localhost:3000/not-found", { method: "GET" });
+  const req3 = new Request("http://localhost:9091/not-found", { method: "GET" });
   const res3 = await router.handle(req3);
   console.log("GET /not-found result:", res3 === undefined ? "404" : "error");
 

@@ -14,7 +14,7 @@ async function main() {
     stderr: "pipe",
     env: {
         ...process.env,
-        API_PORT: "3000"
+        API_PORT: "9091"
     }
   });
 

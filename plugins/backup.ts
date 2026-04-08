@@ -2,6 +2,7 @@ import path from "node:path";
 import { readdir, unlink, stat } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { z, type IPlugin, type PluginContext, type AppEvents } from "bun_plugins";
+import { Cron } from "croner";
 import {
   MinecraftCommands,
   FileExtensions,
@@ -14,8 +15,8 @@ import {
  */
 const BackupConstants = {
   NAME: "GuardianBackup",
-  VERSION: "4.0.0",
-  DESCRIPTION: "Sistema de respaldos automáticos usando Bun Archive y Bun.cron",
+  VERSION: "4.1.0",
+  DESCRIPTION: "Sistema de respaldos automáticos usando Bun Archive y Croner",
   AUTHOR: "Guardian Team",
   
   // Default configuration values
@@ -33,7 +34,7 @@ const BackupConstants = {
   // Log messages
   LOGS: {
     CRON_ACTIVE: "Cron activo [{schedule}]. Próximo backup: {date}",
-    CRON_ERROR: "Error al inicializar Bun.cron: {error}",
+    CRON_ERROR: "Error al inicializar Croner: {error}",
     BACKUP_START: "♻️ Iniciando respaldo programado...",
     BACKUP_SUCCESS: "✅ Backup exitoso: {fileName}",
     BACKUP_ERROR: "Error crítico en backup: {error}",
@@ -42,14 +43,6 @@ const BackupConstants = {
     BACKUP_DELETED: "🗑️ Eliminado backup antiguo: {name}",
     CRON_STOPPED: "Cron de backups detenido.",
   } as const,
-} as const;
-
-/**
- * Backup plugin file paths
- */
-const BackupPaths = {
-  PLUGIN_CONFIG: "plugins/backup.yaml",
-  CONFIG_HEADER: "# Backup Plugin Configuration",
 } as const;
 
 /**
@@ -62,7 +55,6 @@ const BackupMinecraftCommands = {
 
 /**
  * Extended AppEvents interface for Minecraft-specific events
- * Uses Omit to override the log property to accept both string and structured formats
  */
 interface MinecraftAppEvents extends Omit<AppEvents, 'log'> {
   log: string | { level: "info" | "error" | "warn"; message: string };
@@ -97,15 +89,15 @@ export class BackupPlugin implements IPlugin {
   version = BackupConstants.VERSION;
   description = BackupConstants.DESCRIPTION;
   author = BackupConstants.AUTHOR;
-
+  defaultConfig?: BackupConfig;
   private context!: MinecraftPluginContext;
   private config!: BackupConfig;
-  private job: any = null;
+  private job: Cron | null = null;
   private isBackingUp = false;
 
-  onLoad(context: PluginContext): void {
-    this.context = context as MinecraftPluginContext;
-    this.loadConfig();
+  async onLoad(context: PluginContext): Promise<void> {
+    this.context = context as MinecraftPluginContext;    
+    await this.loadConfig(context);
     this.setupCron();
 
     // Permitir disparar backups manualmente vía eventos
@@ -123,49 +115,38 @@ export class BackupPlugin implements IPlugin {
     }
   }
 
-  private loadConfig(): void {
-    const configPath = path.join(process.cwd(), BackupPaths.PLUGIN_CONFIG);
-    try {
-      if (existsSync(configPath)) {
-        const content = readFileSync(configPath, ConfigConstants.CHARSET);
-        const parsed = Bun.YAML.parse(content) as Record<string, any>;
-        this.config = BackupConfigSchema.parse(parsed);
-      } else {
-        this.config = BackupConfigSchema.parse({});
-        // Create default config file
-        try {
-          const yaml = `${BackupPaths.CONFIG_HEADER}
-cronSchedule: ${BackupConstants.DEFAULTS.CRON_SCHEDULE}
-backupPath: ${BackupConstants.DEFAULTS.BACKUP_PATH}
-maxBackupsToKeep: ${BackupConstants.DEFAULTS.MAX_BACKUPS}
-compressionLevel: ${BackupConstants.DEFAULTS.COMPRESSION_LEVEL}
-sourcePath: ${BackupConstants.DEFAULTS.SOURCE_PATH}
-`;
-          Bun.write(configPath, yaml);
-          this.context.emit("log", `Created default backup config at ${configPath}`);
-        } catch (writeErr) {
-          // Ignore write errors
-        }
-      }
-    } catch (error) {
-      this.context.emit("error", `Failed to load backup config: ${error}. Using defaults.`);
-      this.config = BackupConfigSchema.parse({});
+  private async loadConfig(context: PluginContext): Promise<void> {
+    const { storage } = context;
+    this.defaultConfig = await storage.get("backupConfig") as BackupConfig | undefined;
+    const defaultConfig = {
+      cronSchedule: BackupConstants.DEFAULTS.CRON_SCHEDULE,
+      backupPath: BackupConstants.DEFAULTS.BACKUP_PATH,
+      maxBackupsToKeep: BackupConstants.DEFAULTS.MAX_BACKUPS,
+      compressionLevel: BackupConstants.DEFAULTS.COMPRESSION_LEVEL,
+      sourcePath: BackupConstants.DEFAULTS.SOURCE_PATH,
+    };
+    if (!this.defaultConfig) {
+      await storage.set("backupConfig", BackupConfigSchema.parse(defaultConfig));
     }
+    const config = await storage.get("backupConfig") || defaultConfig;
+    this.config = BackupConfigSchema.parse(config);
+
+
   }
 
   private setupCron(): void {
     try {
-      //@ts-ignore - Bun.cron support callback function but in types it's not defined
-      this.job = Bun.cron(this.config.cronSchedule, () => {
+      // Usar croner para programar los respaldos
+      this.job = new Cron(this.config.cronSchedule, () => {
         this.performBackup();
-      },{});
+      });
       
-      const nextDate = Bun.cron.parse(this.config.cronSchedule);
+      const nextDate = this.job.nextRun();
       const nextDateStr = nextDate ? nextDate.toISOString() : "Unknown";
       
       this.context.emit("log", `Cron activo [${this.config.cronSchedule}]. Próximo backup: ${nextDateStr}`);
     } catch (e) {
-      this.context.emit("error", `Error al inicializar Bun.cron: ${e}`);
+      this.context.emit("error", `Error al inicializar Croner: ${e}`);
     }
   }
 

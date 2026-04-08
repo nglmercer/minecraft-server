@@ -73,7 +73,7 @@ docker-compose up -d
 ### Configured Ports:
 
 - `25565`: Minecraft Server
-- `3000`: API Control/WebInterface
+- `9091`: API Control/WebInterface
 
 ---
 

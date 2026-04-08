@@ -26,12 +26,12 @@ RUN mkdir -p data logs backups temp
 EXPOSE 25565
 
 # Expose API port
-EXPOSE 3000
+EXPOSE 9091
 
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV API_PORT=3000
+ENV API_PORT=9091
 
 # Start the application
 CMD ["bun", "run", "start"]

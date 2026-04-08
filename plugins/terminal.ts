@@ -99,32 +99,33 @@ const getLevelColor = (level: LogLevel): TerminalColorName => {
       return "green";
   }
 };
-
+export type optionsLog = { stripHeader?: boolean, color?: TerminalColorName, timestamp?: boolean };
 /**
  * Format terminal output with timestamp, level, and color
  */
 const formatTerminalOutput = (
   level: LogLevel,
   message: string,
-  source?: string
+  source?: string,
+  options?: optionsLog
 ): string | null => {
   let cleanedMessage = cleanAnsiOutput(message);
   if (!cleanedMessage) return null;
 
   // If the source is the Minecraft server, strip its own redundant header
-  if (source === "Server") {
+  if (source === "Server" && options?.stripHeader) {
     cleanedMessage = stripMinecraftHeader(cleanedMessage);
   }
-
-  const timestamp = new Date().toLocaleTimeString();
-  const color = getLevelColor(level);
+  
+  const timestamp = options?.timestamp ? "[" + new Date().toLocaleTimeString() + "]" : "";
+  const color = options?.color || getLevelColor(level);
   const ansi = TERMINAL_COLORS[color];
   const reset = TERMINAL_COLORS.reset;
 
   if (source) {
-    return ansi + "[" + timestamp + "][" + source + "]" + reset + " " + cleanedMessage;
+    return ansi + timestamp + "[" + source + "]" + reset + " " + cleanedMessage;
   }
-  return ansi + "[" + timestamp + "]" + reset + " " + cleanedMessage;
+  return ansi + timestamp + reset + " " + cleanedMessage;
 };
 
 /**
@@ -132,7 +133,6 @@ const formatTerminalOutput = (
  */
 class TerminalLogger {
   private static instance: TerminalLogger;
-  private context?: PluginContext;
 
   private constructor() {}
 
@@ -143,35 +143,31 @@ class TerminalLogger {
     return TerminalLogger.instance;
   }
 
-  setContext(context: PluginContext) {
-    this.context = context;
-  }
-
-  public log(level: LogLevel, message: string, source?: string) {
-    const formatted = formatTerminalOutput(level, message, source);
+  public log(level: LogLevel, message: string, source?: string, options?: optionsLog) {
+    const formatted = formatTerminalOutput(level, message, source, options);
     if (formatted) {
       console.log(formatted);
     }
   }
 
-  status(message: string, source?: string) {
-    this.log(LogLevels.STATUS, message, source);
+  status(message: string, source?: string, options?: optionsLog) {
+    this.log(LogLevels.STATUS, message, source, options);
   }
 
-  info(message: string, source?: string) {
-    this.log(LogLevels.INFO, message, source);
+  info(message: string, source?: string, options?: optionsLog) {
+    this.log(LogLevels.INFO, message, source, options);
   }
 
-  warn(message: string, source?: string) {
-    this.log(LogLevels.WARN, message, source);
+  warn(message: string, source?: string, options?: optionsLog) {
+    this.log(LogLevels.WARN, message, source, options);
   }
 
-  error(message: string, source?: string) {
-    this.log(LogLevels.ERROR, message, source);
+  error(message: string, source?: string, options?: optionsLog) {
+    this.log(LogLevels.ERROR, message, source, options);
   }
 
-  debug(message: string, source?: string) {
-    this.log(LogLevels.DEBUG, message, source);
+  debug(message: string, source?: string, options?: optionsLog) {
+    this.log(LogLevels.DEBUG, message, source, options);
   }
 }
 
@@ -188,40 +184,43 @@ export class TerminalPlugin implements IPlugin {
   private context!: PluginContext;
   private logger = TerminalLogger.getInstance();
 
-  onLoad(context: PluginContext): void {
+  async onLoad(context: PluginContext): Promise<void> {
     this.context = context;
-    this.logger.setContext(context);
-
+    let logOptions: optionsLog = await context.storage.get("logOptions") || {};
+    if (!logOptions || Object.keys(logOptions).length === 0) {
+      await context.storage.set("logOptions", {timestamp: false});
+      logOptions = {timestamp: false};
+    }
     // Register event handlers for formatted output
-    this.registerEventHandlers();
+    this.registerEventHandlers(logOptions);
   }
 
   onUnload(): void {
   }
 
-  private registerEventHandlers(): void {
+  private registerEventHandlers(logOptions?: optionsLog): void {
     // Handle log events from the system
     this.context.on("log" as keyof AppEvents, (payload: unknown) => {
-      this.handleLogEvent(payload);
+      this.handleLogEvent(payload, logOptions);
     });
 
     // Handle error events
     this.context.on("error" as keyof AppEvents, (payload: unknown) => {
-      this.handleErrorEvent(payload);
+      this.handleErrorEvent(payload, logOptions);
     });
 
     // Handle output events (Minecraft server output)
     this.context.on("output" as keyof AppEvents, (payload: unknown) => {
-      this.handleOutputEvent(payload);
+      this.handleOutputEvent(payload, logOptions);
     });
 
     // Handle status events
     this.context.on("status" as keyof AppEvents, (payload: unknown) => {
-      this.handleStatusEvent(payload);
+      this.handleStatusEvent(payload, logOptions);
     });
   }
 
-  private handleLogEvent(payload: unknown): void {
+  private handleLogEvent(payload: unknown, logOptions?: optionsLog): void {
     let message: string;
     let level: LogLevel = LogLevels.INFO;
 
@@ -255,10 +254,10 @@ export class TerminalPlugin implements IPlugin {
       message = String(payload);
     }
     
-    this.logger.log(level, message, "System");
+    this.logger.log(level, message, "System", logOptions);
   }
 
-  private handleErrorEvent(payload: unknown): void {
+  private handleErrorEvent(payload: unknown, logOptions?: optionsLog): void {
     let message: string;
     if (payload instanceof Error) {
       message = payload.stack || payload.message;
@@ -271,25 +270,25 @@ export class TerminalPlugin implements IPlugin {
     } else {
       message = String(payload);
     }
-    this.logger.error(message, "Error");
+    this.logger.error(message, "Error", logOptions);
   }
 
-  private handleOutputEvent(payload: unknown): void {
+  private handleOutputEvent(payload: unknown, logOptions?: optionsLog): void {
     const message = typeof payload === "string" ? payload : String(payload);
     
     // Detect log level from Minecraft server output
     const level = this.detectLogLevel(message);
     
     // Format and output
-    const formatted = formatTerminalOutput(level, message, "Server");
+    const formatted = formatTerminalOutput(level, message, "Server", logOptions);
     if (formatted) {
       console.log(formatted);
     }
   }
 
-  private handleStatusEvent(payload: unknown): void {
+  private handleStatusEvent(payload: unknown, logOptions?: optionsLog): void {
     const status = typeof payload === "string" ? payload : String(payload);
-    this.logger.log(LogLevels.STATUS, `Server status changed to: ${status}`, "Guardian");
+    this.logger.log(LogLevels.STATUS, `Server status changed to: ${status}`, "Guardian", logOptions);
   }
 
   /**

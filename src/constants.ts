@@ -271,7 +271,7 @@ export const ExitCodes = {
  */
 export const Timeouts = {
   GRACEFUL_SHUTDOWN: 10000, // 10 seconds
-  BACKUP_SAVE_DELAY: 3000,  // 3 seconds
+  BACKUP_SAVE_DELAY: 9091,  // 3 seconds
 } as const;
 
 // ==================== Error Messages ====================
