@@ -124,12 +124,7 @@ export abstract class BaseService
     // Lógica interna (detectar links, etc.)
     this.handleLogic(rawText);
 
-    // Formatear log bonito
-    const formatted = formatLog(this.name, this.themeColor, rawText, this.options);
-
-    if (formatted) {
-      this.emit(event, formatted);
-    }
+    this.emit(event, rawText);
   }
 
   protected abstract handleLogic(line: string): void;

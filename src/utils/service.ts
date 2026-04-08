@@ -51,14 +51,6 @@ export abstract class BaseService extends EventEmitter implements AsyncDisposabl
   async launch(cmd: string[], env: Record<string, string> = {}) {
     try {
       this.proc = Bun.spawn(cmd, {
-        terminal: {
-          cols: 80,
-          rows: 24,
-          data: (terminal, rawData) => {
-            const text = new TextDecoder().decode(rawData);
-            this.handlePtyData(text);
-          },
-        },
         stdout: "pipe",
         stderr: "pipe",
         stdin: "pipe",
@@ -75,11 +67,34 @@ export abstract class BaseService extends EventEmitter implements AsyncDisposabl
           this.emit("exit", exitCode);
         },
       });
+
+      // Procesar streams de forma asíncrona
+      if (this.proc.stdout) this.processStream(this.proc.stdout);
+      if (this.proc.stderr) this.processStream(this.proc.stderr);
       
     } catch (err) {
       const msg = `Fallo al iniciar: ${err instanceof Error ? err.message : String(err)}`;
       console.error(formatLog(this.name, "red", msg, this.options));
       throw err;
+    }
+  }
+
+  private async processStream(stream: ReadableStream<Uint8Array>) {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = decoder.decode(value);
+        if (text) {
+          this.handlePtyData(text);
+        }
+      }
+    } catch (err) {
+      // Ignorar errores de stream (ej: proceso cerrado)
+    } finally {
+      reader.releaseLock();
     }
   }
 
@@ -102,10 +117,7 @@ export abstract class BaseService extends EventEmitter implements AsyncDisposabl
 
   private broadcast(event: "data" | "error", rawText: string) {
     this.handleLogic(rawText);
-    const formatted = formatLog(this.name, this.themeColor, rawText, this.options);
-    if (formatted) {
-      this.emit(event, formatted);
-    }
+    this.emit(event, rawText);
   }
 
   protected abstract handleLogic(line: string): void;

@@ -31,17 +31,17 @@ class PlayitService extends BaseService {
     });
 
     // Build command args
-    const args: string[] = [];
+    const args: string[] = ["--stdout"];
     
-    // If we have a token, try to use it
+    // If we have a token (secret), try to use it
     if (this.token) {
-      args.push("--token", this.token);
+      args.push("--secret", this.token);
     }
     
-    // Add config path if exists
-    const configPath = path.join(this.dataDir, "config.json");
-    if (existsSync(configPath)) {
-      args.push("--config", configPath);
+    // Check for secret file
+    const secretPath = path.join(this.dataDir, "playit.toml");
+    if (existsSync(secretPath)) {
+      args.push("--secret_path", secretPath);
     }
 
     await this.launch([this.binaryPath, ...args], {
@@ -54,34 +54,73 @@ class PlayitService extends BaseService {
   /**
    * Clean and parse playit output to extract meaningful messages
    */
-  private parseOutput(line: string): string | null {
-    // Skip empty lines
-    const trimmed = line.trim();
-    if (!trimmed) return null;
+  private parseOutput(line: string): { level: "info" | "warn" | "error" | "status", message: string | null } {
+    let trimmed = line.trim();
+    if (!trimmed) return { level: "info", message: null };
 
-    // Extract claim URL
+    // 0. Detect new playit-agent log format: 2024-03-20T...  INFO ...: message
+    // and extract the message part
+    const logMatch = trimmed.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+(\w+)\s+(.+?):\s+(.+)$/);
+    if (logMatch && logMatch[3]) {
+      trimmed = logMatch[3];
+    }
+
+    // 1. Extract Claim URL
     if (line.includes("https://playit.gg/claim/")) {
-      const match = line.match(/https:\/\/playit\.gg\/claim\/[a-zA-Z0-9]+/);
+      const match = line.match(/https:\/\/playit\.gg\/claim\/[a-z0-9]+/);
       if (match) {
         this.claimUrl = match[0];
-        return `🔗 Setup URL: ${this.claimUrl}`;
+        return { 
+          level: "warn", 
+          message: `🔗 Setup URL: ${this.claimUrl}`
+        };
       }
     }
-    
-    if (line.includes("connected") || line.includes("tunnel running") || line.includes("tunnel is ready")) {
-      return `[info] ${trimmed}`;
+
+    // 2. Detect JSON logs (Playit often outputs JSON when using certain flags)
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const json = JSON.parse(trimmed);
+        const levelStr = String(json.level || "info").toLowerCase();
+        const level = (levelStr === "error" || levelStr === "panic") ? "error" : 
+                      (levelStr === "warn" || levelStr === "warning") ? "warn" : "info";
+        
+        return { 
+          level, 
+          message: json.message || trimmed 
+        };
+      } catch (e) {
+        // Not valid JSON, continue to raw parsing
+      }
     }
-    
-    if (line.includes("error") || line.includes("failed")) {
-      return `[error] ${trimmed}`;
+
+    // 3. Status/Connection detection (case-insensitive)
+    const lower = trimmed.toLowerCase();
+    if (
+      lower.includes("tunnel running") || 
+      lower.includes("connected to playit.gg") || 
+      lower.includes("tunnel is ready") ||
+      lower.includes("http server listening")
+    ) {
+      return { level: "status", message: `✅ ${trimmed}` };
     }
-    
-    if (line.includes("warning")) {
-      return `[warn] ${trimmed}`;
+
+    // 4. Error/Warning detection
+    if (lower.includes("error") || lower.includes("failed") || lower.includes("panic")) {
+      return { level: "error", message: trimmed };
     }
-    
-    // Return cleaned message
-    return trimmed;
+
+    if (lower.includes("warning") || lower.includes("warn")) {
+      return { level: "warn", message: trimmed };
+    }
+
+    // 5. Version/Start info
+    if (lower.includes("playit-cli") || lower.includes("version")) {
+      return { level: "info", message: `[System] ${trimmed}` };
+    }
+
+    // Return cleaned message for everything else
+    return { level: "info", message: trimmed };
   }
 
   protected handleLogic(line: string): void {
@@ -102,7 +141,7 @@ class PlayitService extends BaseService {
   /**
    * Get cleaned output for broadcasting
    */
-  getCleanOutput(line: string): string | null {
+  getCleanOutput(line: string): { level: "info" | "warn" | "error" | "status", message: string | null } {
     return this.parseOutput(line);
   }
 }
@@ -134,21 +173,16 @@ export class TunnelPlugin implements IPlugin {
       const binaryPath = await binaryManager.ensureBinary();
       const token = await storage.get("token", tunnelConfig.token);
       await storage.set("token", tunnelConfig.token || token);
+      
       // Check for existing config
       let existingToken = tunnelConfig.token || token;
       this.service = new PlayitService(binaryPath, dataDir, existingToken);
-      log.info("Starting playit.gg tunnel...",{existingToken});
+      
+      log.info("Starting playit.gg tunnel...", { existingToken: existingToken ? "Present" : "Missing" });
+      
       this.service.on("data", (msg) => {
-        // Check for claim URL in the output
-        if (this.service?.claimUrl) {
-          log.warn(`TUNNEL SETUP REQUIRED: Visit ${this.service.claimUrl} to authenticate`);
-        }
-        
-        // Use cleaned output if available
-        const cleanMsg = this.service?.getCleanOutput?.(msg);
-        if (cleanMsg) {
-          log.info(cleanMsg);
-        }
+        console.log("data",msg)
+        // Use the new structured output parsing
       });
 
       this.service.on("error", (msg) => {
@@ -187,4 +221,33 @@ export class TunnelPlugin implements IPlugin {
       await this.service.stop();
     }
   }
+}
+if (import.meta.main) {
+  // Test script for PlayitService
+  const config = Config.getInstance();
+  const tunnelConfig = config.guardian.tunnel;
+  const dataDir = path.join(config.guardian.paths.data, "playit");
+  const binaryManager = new BinaryManager(dataDir, tunnelConfig.token);
+  
+  console.log("--- PlayitService Test ---");
+  console.log(`Data Dir: ${dataDir}`);
+  
+  const binaryPath = await binaryManager.ensureBinary();
+  const service = new PlayitService(binaryPath, dataDir, tunnelConfig.token);
+  
+  service.on("data", (msg) => {
+    const result = service.getCleanOutput(msg);
+    console.log("data",result)
+  });
+
+  service.on("error", (msg) => {
+    console.error(msg);
+  });
+
+  service.on("exit", (code) => {
+    process.exit(code);
+  });
+
+  console.log("Starting service...");
+  await service.start();
 }
