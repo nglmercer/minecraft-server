@@ -73,12 +73,13 @@ const cleanAnsiOutput = (message: string): string | null => {
  */
 const stripMinecraftHeader = (message: string): string => {
   // Matches patterns like [16:48:43 INFO]: or [16:48:43] [Server thread/INFO]:
-  // and variations without brackets or with different level formats.
+  // or [16:48:43 INFO] or 16:48:43 [INFO]
   return message
-    .replace(/^\[\d{2}:\d{2}:\d{2} [A-Z]+\]:\s*/, "")
-    .replace(/^\[\d{2}:\d{2}:\d{2}\] \[.*?\/[A-Z]+\]:\s*/, "")
-    .replace(/^\d{2}:\d{2}:\d{2} \[.*?\/[A-Z]+\]\s*/, "")
-    .replace(/^\[\d{2}:\d{2}:\d{2}\]\s+\[.*?\]:\s*/, "");
+    .replace(/^\[\d{2}:\d{2}:\d{2}\s+[A-Z]+\]:?\s*/, "")
+    .replace(/^\[\d{2}:\d{2}:\d{2}\]\s+\[.*?\/[A-Z]+\]:?\s*/, "")
+    .replace(/^\d{2}:\d{2}:\d{2}\s+\[.*?\/[A-Z]+\]\s*/, "")
+    .replace(/^\[\d{2}:\d{2}:\d{2}\]\s+\[.*?\]:?\s*/, "")
+    .replace(/^\d{2}:\d{2}:\d{2}\s+[A-Z]+:?\s*/, "");
 };
 
 /**
@@ -113,7 +114,7 @@ const formatTerminalOutput = (
   if (!cleanedMessage) return null;
 
   // If the source is the Minecraft server, strip its own redundant header
-  if (source === "Server" && options?.stripHeader) {
+  if (source === "Server" && options?.stripHeader !== false) {
     cleanedMessage = stripMinecraftHeader(cleanedMessage);
   }
   
@@ -188,8 +189,11 @@ export class TerminalPlugin implements IPlugin {
     this.context = context;
     let logOptions: optionsLog = await context.storage.get("logOptions") || {};
     if (!logOptions || Object.keys(logOptions).length === 0) {
-      await context.storage.set("logOptions", {timestamp: false});
-      logOptions = {timestamp: false};
+      await context.storage.set("logOptions", {timestamp: false, stripHeader: true});
+      logOptions = {timestamp: false, stripHeader: true};
+    } else if (logOptions.stripHeader === undefined) {
+      logOptions.stripHeader = true;
+      await context.storage.set("logOptions", logOptions);
     }
     // Register event handlers for formatted output
     this.registerEventHandlers(logOptions);
@@ -296,23 +300,19 @@ export class TerminalPlugin implements IPlugin {
    * Prioritizes formal Minecraft log headers, then falls back to keyword matching.
    */
   private detectLogLevel(message: string): LogLevel {
-    // Try to find status in formal MC header like [12:34:56 INFO]:
-    const mcHeaderMatch = message.match(/\[\d{2}:\d{2}:\d{2} ([A-Z]+)\]/);
-    if (mcHeaderMatch?.[1]) {
-      const levelStr = mcHeaderMatch[1].toUpperCase();
-      if (levelStr === "WARN" || levelStr === "WARNING") return LogLevels.WARN;
+    // Try to find status in formal MC header like [12:34:56 INFO]: or [12:34:56] [Server thread/INFO]:
+    const mcHeaderMatch = message.match(/\[\d{2}:\d{2}:\d{2}\s+([A-Z]+)\]/) || 
+                          message.match(/\[\d{2}:\d{2}:\d{2}\]\s+\[.*?\/([A-Z]+)\]/) ||
+                          message.match(/^\d{2}:\d{2}:\d{2}\s+([A-Z]+)/);
+    
+    if (mcHeaderMatch) {
+       const levelStr = (mcHeaderMatch[1] || mcHeaderMatch[2] || "").toUpperCase();
+       if (!levelStr) return LogLevels.INFO;
+       
+       if (levelStr === "WARN" || levelStr === "WARNING") return LogLevels.WARN;
       if (levelStr === "ERROR" || levelStr === "SEVERE" || levelStr === "FATAL") return LogLevels.ERROR;
       if (levelStr === "DEBUG") return LogLevels.DEBUG;
       if (levelStr === "INFO") return LogLevels.INFO;
-    }
-
-    // Try to find status in thread-style header like [12:34:56] [Server thread/INFO]:
-    const threadMatch = message.match(/\[\d{2}:\d{2}:\d{2}\] \[.*?\/([A-Z]+)\]/);
-    if (threadMatch?.[1]) {
-      const levelStr = threadMatch[1].toUpperCase();
-      if (levelStr === "WARN" || levelStr === "WARNING") return LogLevels.WARN;
-      if (levelStr === "ERROR" || levelStr === "SEVERE") return LogLevels.ERROR;
-      if (levelStr === "DEBUG") return LogLevels.DEBUG;
     }
 
     // Keyword fallback

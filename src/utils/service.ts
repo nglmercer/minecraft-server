@@ -67,6 +67,11 @@ export abstract class BaseService extends EventEmitter implements AsyncDisposabl
           ...env,
         },
         onExit: (proc, exitCode) => {
+          // Flush any remaining data in the buffer
+          if (this.lineBuffer.trim()) {
+            this.broadcast("data", this.lineBuffer);
+            this.lineBuffer = "";
+          }
           this.emit("exit", exitCode);
         },
       });

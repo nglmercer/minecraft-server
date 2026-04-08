@@ -119,6 +119,7 @@ export class TunnelPlugin implements IPlugin {
 
   async onLoad(context: PluginContext): Promise<void> {
     this.context = context;
+    const {log} = this.context;
     const config = Config.getInstance();
     const tunnelConfig = config.guardian.tunnel;
 
@@ -127,7 +128,7 @@ export class TunnelPlugin implements IPlugin {
     }
 
     this.isEnabled = true;
-    this.context.emit("log", {message: "Starting playit.gg tunnel...", level: "info"});
+    log.info("Starting playit.gg tunnel...");
 
     try {
       const dataDir = path.join(config.guardian.paths.data, "playit");
@@ -152,47 +153,44 @@ export class TunnelPlugin implements IPlugin {
       this.service.on("data", (msg) => {
         // Check for claim URL in the output
         if (this.service?.claimUrl) {
-          this.context.emit("log", { 
-            message: `TUNNEL SETUP REQUIRED: Visit ${this.service.claimUrl} to authenticate`, 
-            level: "warn" 
-          });
-          this.service.claimUrl = undefined; // Only show once
+          log.warn(`TUNNEL SETUP REQUIRED: Visit ${this.service.claimUrl} to authenticate`);
         }
         
         // Use cleaned output if available
         const cleanMsg = this.service?.getCleanOutput?.(msg);
         if (cleanMsg) {
-          this.context.emit("log", { level: "info", message: cleanMsg });
+          log.info(cleanMsg);
         }
       });
 
       this.service.on("error", (msg) => {
-        this.context.emit("error", msg);
+        log.error(msg);
       });
 
       // Start the service in the background
       this.service.start().then(() => {
-        this.context.emit("log", {message: "Tunnel is active and running!", level: "info"});
+        log.info("Tunnel is active and running!");
       }).catch(err => {
         // Don't crash the app if tunnel fails to start
-        this.context.emit("log", {message: `Tunnel background service warning: ${err.message}`, level: "warn"});
+        log.warn(`Tunnel background service warning: ${err.message}`);
       });
 
       // Registrar manejadores de control
       this.context.on("tunnel:restart" as any, async () => {
-        this.context.emit("log", {message: "Restarting tunnel...", level: "info"});
+        log.info("Restarting tunnel...");
         if (this.service) await this.service.stop();
         await this.service?.start();
       });
 
       this.context.on("tunnel:stop" as any, async () => {
-        this.context.emit("log", {message: "Stopping tunnel...", level: "info"});
+        log.info("Stopping tunnel...");
         if (this.service) await this.service.stop();
       });
 
-    } catch (err: any) {
+    } catch (err) {
       // Log error but don't crash - tunnel is optional
-      this.context.emit("log", {message: `Tunnel skipped: ${err.message}`, level: "warn"});
+      const errorMessage = err instanceof Error ? err.message : err;
+      log.warn(`Tunnel skipped: ${errorMessage}`);
     }
   }
 

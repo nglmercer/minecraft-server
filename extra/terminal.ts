@@ -53,7 +53,7 @@ export abstract class BaseService
   protected proc?: ServiceProc;
   // Buffer para acumular fragmentos de la PTY
   private lineBuffer: string = "";
-  protected options: { timestamp?: boolean } = { timestamp: true };
+  protected options: { timestamp?: boolean } = { timestamp: false };
 
   public abstract readonly name: string;
   public abstract readonly themeColor: ColorName;
@@ -85,6 +85,11 @@ export abstract class BaseService
           ...env,
         },
         onExit: (proc, exitCode) => {
+          // Flush any remaining data in the buffer
+          if (this.lineBuffer.trim()) {
+            this.broadcast("data", this.lineBuffer);
+            this.lineBuffer = "";
+          }
           this.emit("exit", exitCode);
         },
       });
