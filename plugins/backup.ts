@@ -15,7 +15,7 @@ import {
 const BackupConstants = {
   NAME: "GuardianBackup",
   VERSION: "4.0.0",
-  DESCRIPTION: "Sistema de respaldos automáticos usando Bun Archive y Cron",
+  DESCRIPTION: "Sistema de respaldos automáticos usando Bun Archive y Bun.cron",
   AUTHOR: "Guardian Team",
   
   // Default configuration values
@@ -23,7 +23,6 @@ const BackupConstants = {
     CRON_SCHEDULE: "0 0 4 * * *", // 4:00 AM daily
     BACKUP_PATH: "./backups",
     MAX_BACKUPS: 5,
-    TIME_ZONE: "America/Lima",
     COMPRESSION_LEVEL: 6,
     SOURCE_PATH: "./",
   } as const,
@@ -34,7 +33,7 @@ const BackupConstants = {
   // Log messages
   LOGS: {
     CRON_ACTIVE: "Cron activo [{schedule}]. Próximo backup: {date}",
-    CRON_ERROR: "Error al inicializar el CronJob: {error}",
+    CRON_ERROR: "Error al inicializar Bun.cron: {error}",
     BACKUP_START: "♻️ Iniciando respaldo programado...",
     BACKUP_SUCCESS: "✅ Backup exitoso: {fileName}",
     BACKUP_ERROR: "Error crítico en backup: {error}",
@@ -87,7 +86,6 @@ const BackupConfigSchema = z.object({
   cronSchedule: z.string().default(BackupConstants.DEFAULTS.CRON_SCHEDULE),
   backupPath: z.string().default(BackupConstants.DEFAULTS.BACKUP_PATH),
   maxBackupsToKeep: z.number().int().min(1).default(BackupConstants.DEFAULTS.MAX_BACKUPS),
-  timeZone: z.string().default(BackupConstants.DEFAULTS.TIME_ZONE),
   compressionLevel: z.number().int().min(1).max(12).default(BackupConstants.DEFAULTS.COMPRESSION_LEVEL),
   sourcePath: z.string().default(BackupConstants.DEFAULTS.SOURCE_PATH)
 });
@@ -102,7 +100,7 @@ export class BackupPlugin implements IPlugin {
 
   private context!: MinecraftPluginContext;
   private config!: BackupConfig;
-  private job: CronJob | null = null;
+  private job: any = null;
   private isBackingUp = false;
 
   onLoad(context: PluginContext): void {
@@ -140,7 +138,6 @@ export class BackupPlugin implements IPlugin {
 cronSchedule: ${BackupConstants.DEFAULTS.CRON_SCHEDULE}
 backupPath: ${BackupConstants.DEFAULTS.BACKUP_PATH}
 maxBackupsToKeep: ${BackupConstants.DEFAULTS.MAX_BACKUPS}
-timeZone: ${BackupConstants.DEFAULTS.TIME_ZONE}
 compressionLevel: ${BackupConstants.DEFAULTS.COMPRESSION_LEVEL}
 sourcePath: ${BackupConstants.DEFAULTS.SOURCE_PATH}
 `;
@@ -158,17 +155,17 @@ sourcePath: ${BackupConstants.DEFAULTS.SOURCE_PATH}
 
   private setupCron(): void {
     try {
-      this.job = CronJob.from({
-        cronTime: this.config.cronSchedule,
-        onTick: () => this.performBackup(),
-        start: true,
-        timeZone: this.config.timeZone,
-      });
-      const nextDate = this.job.nextDate();
-      const nextDateStr = nextDate ? nextDate.toISO() : "Unknown";
+      //@ts-ignore - Bun.cron support callback function but in types it's not defined
+      this.job = Bun.cron(this.config.cronSchedule, () => {
+        this.performBackup();
+      },{});
+      
+      const nextDate = Bun.cron.parse(this.config.cronSchedule);
+      const nextDateStr = nextDate ? nextDate.toISOString() : "Unknown";
+      
       this.context.emit("log", `Cron activo [${this.config.cronSchedule}]. Próximo backup: ${nextDateStr}`);
     } catch (e) {
-      this.context.emit("error", `Error al inicializar el CronJob: ${e}`);
+      this.context.emit("error", `Error al inicializar Bun.cron: ${e}`);
     }
   }
 
