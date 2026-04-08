@@ -119,7 +119,7 @@ export class TunnelPlugin implements IPlugin {
 
   async onLoad(context: PluginContext): Promise<void> {
     this.context = context;
-    const {log} = this.context;
+    const {log,storage} = this.context;
     const config = Config.getInstance();
     const tunnelConfig = config.guardian.tunnel;
 
@@ -128,28 +128,16 @@ export class TunnelPlugin implements IPlugin {
     }
 
     this.isEnabled = true;
-    log.info("Starting playit.gg tunnel...");
-
     try {
       const dataDir = path.join(config.guardian.paths.data, "playit");
       const binaryManager = new BinaryManager(dataDir, tunnelConfig.token);
       const binaryPath = await binaryManager.ensureBinary();
-
+      const token = await storage.get("token", tunnelConfig.token);
+      await storage.set("token", tunnelConfig.token || token);
       // Check for existing config
-      const configPath = path.join(dataDir, "config.json");
-      let existingToken = tunnelConfig.token;
-      
-      if (!existingToken && existsSync(configPath)) {
-        try {
-          const playitConfig = JSON.parse(readFileSync(configPath, "utf-8")) as PlayitConfig;
-          existingToken = playitConfig.secret || playitConfig.tunnel_secret;
-        } catch (e) {
-          // Ignore parse errors
-        }
-      }
-
+      let existingToken = tunnelConfig.token || token;
       this.service = new PlayitService(binaryPath, dataDir, existingToken);
-      
+      log.info("Starting playit.gg tunnel...",{existingToken});
       this.service.on("data", (msg) => {
         // Check for claim URL in the output
         if (this.service?.claimUrl) {
