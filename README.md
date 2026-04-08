@@ -18,7 +18,6 @@
   - **Automated Backups**: Configurable cron-based backups with compression and `save-off/on` synchronization.
   - **Tunneling**: Integrated support for exposing your server (Playit.gg).
   - **Terminal UI**: Clean, formatted console output and command handling.
-- 🌐 **P2P Networking**: Built-in `libp2p` support for decentralized peer discovery and secure connections.
 - 🛡️ **Security**: Automatic **checksum verification** for Java downloads to ensure file integrity.
 - 🐳 **Docker Ready**: Full Docker and Docker Compose support for easy containerization.
 - 📦 **Cross-Platform**: Compiled binaries for Linux, Windows, and macOS (x64 & ARM64).
@@ -75,7 +74,6 @@ docker-compose up -d
 
 - `25565`: Minecraft Server
 - `3000`: API Control/WebInterface
-- `9000`: Libp2p P2P Network
 
 ---
 
@@ -98,7 +96,6 @@ The main configuration is located in `config/config.yaml`. Here you can define:
 | **Backup**   | Automated, compressed backups of your world and config.      |
 | **Terminal** | Handles interactive console and pretty-printing logs.        |
 | **Tunnel**   | Integration for secure tunneling services.                   |
-| **Libp2p**   | Peer-to-peer discovery and connectivity.                     |
 
 ---
 

@@ -28,13 +28,10 @@ EXPOSE 25565
 # Expose API port
 EXPOSE 3000
 
-# Expose Libp2p port
-EXPOSE 9000
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV API_PORT=3000
-ENV LIBP2P_PORT=9000
 
 # Start the application
 CMD ["bun", "run", "start"]

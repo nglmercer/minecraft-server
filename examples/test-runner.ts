@@ -14,7 +14,6 @@ async function main() {
     stderr: "pipe",
     env: {
         ...process.env,
-        LIBP2P_PORT: "9000",
         API_PORT: "3000"
     }
   });
@@ -39,12 +38,6 @@ async function main() {
       const text = decoder.decode(value);
       process.stdout.write(text); // Mirror server output
       
-      if (text.includes("Libp2p node started")) {
-        serverStarted = true;
-        clearTimeout(timeout);
-        console.log("\n✅ Server is ready! Running tests...\n");
-        runTests();
-      }
     }
   })();
 
