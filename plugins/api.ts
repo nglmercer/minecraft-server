@@ -1,20 +1,11 @@
 import { type IPlugin, type PluginContext } from "bun_plugins";
 import { ApiSchemas } from "../src/utils/parsejson";
 import { type Server, type ServerWebSocket } from "bun";
-
-// WS API Request/Response types
-type WSRequest = 
-  | { method: "write"; params: { command: string } }
-  | { method: "write-batch"; params: { commands: string[] } }
-  | { method: "server:start" | "server:stop" | "server:restart" | "backup:create" | "tunnel:restart" | "status"; params?: Record<string, unknown> };
-
-type WSResponse<T = unknown> =
-  | { success: true; result: T }
-  | { success: false; error: string };
+import { ApiRouter, ApiRequest } from "../src/utils/api-handler";
 
 /**
  * API Plugin that provides a REST and WebSocket interface for server control.
- * Uses Bun.serve and Bun WebSocket features.
+ * Uses a framework-like router for better organization and scalability.
  */
 export class ApiPlugin implements IPlugin {
   name = "api-control";
@@ -25,15 +16,16 @@ export class ApiPlugin implements IPlugin {
   private context!: PluginContext;
   private server: Server<undefined> | null = null;
   private sockets = new Set<ServerWebSocket<undefined>>();
+  private router: ApiRouter = new ApiRouter();
 
   // Environment configuration
   private readonly PORT = process.env.API_PORT ? parseInt(process.env.API_PORT) : 3000;
 
   onLoad(context: PluginContext): void {
     this.context = context;
+    this.setupRoutes();
     this.startServer();
     this.setupEventListeners();
-    
   }
 
   async onUnload(): Promise<void> {
@@ -42,13 +34,74 @@ export class ApiPlugin implements IPlugin {
     }
   }
 
+  private setupRoutes(): void {
+    // Middleware for logging requests
+    this.router.use((ctx) => {
+      this.context.emit("log", { 
+        level: "info", 
+        message: `API Request: ${ctx.req.method} ${ctx.url.pathname}` 
+      });
+    });
+
+    // Health check / Status
+    this.router.get("/status", () => {
+      return ApiRequest.json({
+        status: "active",
+        version: this.version,
+      });
+    });
+
+    // --- Command Endpoints ---
+
+    this.router.post("/write", async (ctx) => {
+      this.context.emit("server:write", ctx.body.command);
+      return ApiRequest.success("Command sent");
+    }, ApiRouter.validateBody(ApiSchemas.write));
+
+    this.router.post("/write-batch", async (ctx) => {
+      for (const cmd of ctx.body.commands) {
+        this.context.emit("server:write", cmd);
+      }
+      return ApiRequest.success(`${ctx.body.commands.length} commands sent`);
+    }, ApiRouter.validateBody(ApiSchemas.writeBatch));
+
+    // --- Server Control Endpoints ---
+
+    this.router.post("/server/start", () => {
+      this.context.emit("server:start", {});
+      return ApiRequest.success("Server start signal sent");
+    });
+
+    this.router.post("/server/stop", () => {
+      this.context.emit("server:stop", {});
+      return ApiRequest.success("Server stop signal sent");
+    });
+
+    this.router.post("/server/restart", () => {
+      this.context.emit("server:restart", {});
+      return ApiRequest.success("Server restart signal sent");
+    });
+
+    // --- Other Endpoints ---
+
+    this.router.post("/backup/create", () => {
+      this.context.emit("backup:create", {});
+      return ApiRequest.success("Backup trigger sent");
+    });
+
+    this.router.post("/tunnel/restart", () => {
+      this.context.emit("tunnel:restart", {});
+      return ApiRequest.success("Tunnel restart signal sent");
+    });
+  }
+
   private startServer(): void {
     const port = this.PORT;
     const self = this;
 
     this.server = Bun.serve({
       port,
-      fetch(req, server) {
+      async fetch(req, server) {
         const url = new URL(req.url);
 
         // Upgrade to WebSocket
@@ -57,19 +110,10 @@ export class ApiPlugin implements IPlugin {
           return success ? undefined : new Response("WebSocket upgrade failed", { status: 400 });
         }
 
-        // --- HTTP API ---
-        if (req.method === "POST") {
-          return self.handlePostRequest(url.pathname, req);
-        }
-
-        // Health check / Status
-        if (url.pathname === "/status") {
-          return Response.json({
-            status: "active",
-            version: self.version,
-          });
-        }
-
+        // Handle with router
+        const response = await self.router.handle(req, server);
+        
+        if (response) return response;
 
         return new Response("Not Found", { status: 404 });
       },
@@ -93,59 +137,6 @@ export class ApiPlugin implements IPlugin {
     });
 
     this.context.emit("log", { level: "info", message: `API Server started on http://localhost:${port}` });
-  }
-
-  private async handlePostRequest(path: string, req: Request): Promise<Response> {
-    try {
-      const body = await req.json();
-
-      switch (path) {
-        case "/write": {
-          const result = ApiSchemas.write(body);
-          if (!result.success) {
-            return Response.json({ success: false, error: result.error }, { status: 400 });
-          }
-          this.context.emit("server:write", result.data.command);
-          return Response.json({ success: true, message: "Command sent" });
-        }
-
-        case "/write-batch": {
-          const result = ApiSchemas.writeBatch(body);
-          if (!result.success) {
-            return Response.json({ success: false, error: result.error }, { status: 400 });
-          }
-          for (const cmd of result.data.commands) {
-            this.context.emit("server:write", cmd);
-          }
-          return Response.json({ success: true, message: `${result.data.commands.length} commands sent` });
-        }
-
-        case "/server/start":
-          this.context.emit("server:start", {});
-          return Response.json({ success: true, message: "Server start signal sent" });
-
-        case "/server/stop":
-          this.context.emit("server:stop", {});
-          return Response.json({ success: true, message: "Server stop signal sent" });
-
-        case "/server/restart":
-          this.context.emit("server:restart", {});
-          return Response.json({ success: true, message: "Server restart signal sent" });
-
-        case "/backup/create":
-          this.context.emit("backup:create", {});
-          return Response.json({ success: true, message: "Backup trigger sent" });
-
-        case "/tunnel/restart":
-          this.context.emit("tunnel:restart", {});
-          return Response.json({ success: true, message: "Tunnel restart signal sent" });
-      }
-
-      return Response.json({ success: false, error: "Invalid path or payload" }, { status: 400 });
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "An unknown error occurred";
-      return Response.json({ success: false, error: message }, { status: 500 });
-    }
   }
 
   private handleWsMessage(ws: ServerWebSocket<undefined>, data: unknown): void {
