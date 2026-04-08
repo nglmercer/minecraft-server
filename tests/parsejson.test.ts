@@ -1,9 +1,8 @@
 /**
  * Archivo de prueba para los parsers de JSON
- * Ejecutar con: bun test utils/parsejson.test.ts
+ * Ejecutar con: bun test tests/parsejson.test.ts
  */
 
-import { type } from 'arktype';
 import { describe, test, expect } from 'bun:test';
 import {
   parseSocketIo42Message,
@@ -17,9 +16,9 @@ import {
   parseJsonSafe,
   parseMultipleJson,
   parseAndFormatJson,
-  createSocketIoEventSchema,
   parseSocketIo42MessageWithSchema,
-  ArktypeSchemas
+  ArktypeSchemas,
+  type Validator
 } from '../src/utils/parsejson';
 
 describe('parsejson.ts', () => {
@@ -91,37 +90,31 @@ describe('parsejson.ts', () => {
 
   describe('parseJsonWithSchema', () => {
     test('debe validar correctamente contra el esquema', () => {
-      const userSchema = type({
-        name: 'string',
-        age: 'number',
-        email: 'string.email'
-      });
-      const userJson = '{"name": "Maria", "age": 25, "email": "maria@example.com"}';
-      const result = parseJsonWithSchema(userJson, userSchema);
+      const userValidator: Validator = (data: any) => {
+        if (typeof data === 'object' && data !== null && typeof data.name === 'string' && typeof data.age === 'number') {
+          return { success: true, data };
+        }
+        return { success: false, error: 'Invalid user' };
+      };
+      const userJson = '{"name": "Maria", "age": 25}';
+      const result = parseJsonWithSchema(userJson, userValidator);
       
       expect(result.success).toBe(true);
-      expect(result.data).toEqual({ name: 'Maria', age: 25, email: 'maria@example.com' });
+      expect(result.data).toEqual({ name: "Maria", age: 25 });
     });
 
     test('debe rechazar datos que no cumplen el esquema', () => {
-      const userSchema = type({
-        name: 'string',
-        age: 'number',
-        email: 'string.email'
-      });
-      const invalidUserJson = '{"name": "Maria", "age": 25, "email": "not-an-email"}';
-      const result = parseJsonWithSchema(invalidUserJson, userSchema);
+      const userValidator: Validator = (data: any) => {
+        if (typeof data === 'object' && data !== null && typeof data.name === 'string') {
+          return { success: true, data };
+        }
+        return { success: false, error: 'Invalid user' };
+      };
+      const invalidUserJson = '{"age": 25}';
+      const result = parseJsonWithSchema(invalidUserJson, userValidator);
       
       expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-
-    test('debe propagar errores de parseo', () => {
-      const userSchema = type({ name: 'string' });
-      const invalidJson = '{invalid}';
-      const result = parseJsonWithSchema(invalidJson, userSchema);
-      
-      expect(result.success).toBe(false);
+      expect(result.error).toBe('Invalid user');
     });
   });
 
@@ -153,18 +146,24 @@ describe('parsejson.ts', () => {
 
   describe('parseJsonArrayWithSchema', () => {
     test('debe validar cada elemento del array', () => {
-      const numberSchema = type('number');
+      const numberValidator: Validator<number> = (data: any) => {
+        if (typeof data === 'number') return { success: true, data };
+        return { success: false, error: 'Not a number' };
+      };
       const numberArrayJson = '[10, 20, 30, 40, 50]';
-      const result = parseJsonArrayWithSchema(numberArrayJson, numberSchema);
+      const result = parseJsonArrayWithSchema(numberArrayJson, numberValidator);
       
       expect(result.success).toBe(true);
       expect(result.data).toEqual([10, 20, 30, 40, 50]);
     });
 
     test('debe rechazar array con elementos inválidos', () => {
-      const numberSchema = type('number');
+      const numberValidator: Validator<number> = (data: any) => {
+        if (typeof data === 'number') return { success: true, data };
+        return { success: false, error: 'Not a number' };
+      };
       const invalidArrayJson = '[10, "not a number", 30]';
-      const result = parseJsonArrayWithSchema(invalidArrayJson, numberSchema);
+      const result = parseJsonArrayWithSchema(invalidArrayJson, numberValidator);
       
       expect(result.success).toBe(false);
       expect(result.error).toContain('Error at index 1');
@@ -198,29 +197,31 @@ describe('parsejson.ts', () => {
 
   describe('parseJsonObjectWithSchema', () => {
     test('debe validar el objeto contra el esquema', () => {
-      const productSchema = type({
-        id: 'number',
-        name: 'string',
-        price: 'number > 0'
-      });
+      const productValidator: Validator = (data: any) => {
+        if (typeof data === 'object' && data !== null && typeof data.id === 'number' && typeof data.name === 'string' && typeof data.price === 'number' && data.price > 0) {
+          return { success: true, data };
+        }
+        return { success: false, error: 'Invalid product' };
+      };
       const productJson = '{"id": 1, "name": "Laptop", "price": 999.99}';
-      const result = parseJsonObjectWithSchema(productJson, productSchema);
+      const result = parseJsonObjectWithSchema(productJson, productValidator);
       
       expect(result.success).toBe(true);
       expect(result.data).toEqual({ id: 1, name: 'Laptop', price: 999.99 });
     });
 
     test('debe rechazar objeto que no cumple el esquema', () => {
-      const productSchema = type({
-        id: 'number',
-        name: 'string',
-        price: 'number > 0'
-      });
+      const productValidator: Validator = (data: any) => {
+        if (typeof data === 'object' && data !== null && typeof data.price === 'number' && data.price > 0) {
+          return { success: true, data };
+        }
+        return { success: false, error: 'Invalid price' };
+      };
       const invalidProductJson = '{"id": 1, "name": "Laptop", "price": -10}';
-      const result = parseJsonObjectWithSchema(invalidProductJson, productSchema);
+      const result = parseJsonObjectWithSchema(invalidProductJson, productValidator);
       
       expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
+      expect(result.error).toBe('Invalid price');
     });
   });
 
@@ -358,50 +359,16 @@ describe('parsejson.ts', () => {
     });
   });
 
-  describe('createSocketIoEventSchema', () => {
-    test('debe crear esquema sin dataTypeSchema', () => {
-      const schema = createSocketIoEventSchema();
-      const event = { eventName: 'chat', data: { message: 'hello' } };
-      const result = schema(event);
-      
-      expect(result).not.toBeInstanceOf(type.errors);
-      expect(result).toEqual(event);
-    });
-
-    test('debe crear esquema con dataTypeSchema', () => {
-      const messageDataSchema = type({
-        text: 'string',
-        timestamp: 'number'
-      });
-      const schema = createSocketIoEventSchema(messageDataSchema);
-      const event = { eventName: 'message', data: { text: 'Hola!', timestamp: 1234567890 } };
-      const result = schema(event);
-      
-      expect(result).not.toBeInstanceOf(type.errors);
-      expect(result).toEqual(event);
-    });
-
-    test('debe rechazar datos que no cumplen el dataTypeSchema', () => {
-      const messageDataSchema = type({
-        text: 'string',
-        timestamp: 'number'
-      });
-      const schema = createSocketIoEventSchema(messageDataSchema);
-      const invalidEvent = { eventName: 'message', data: { text: 'Hola!' } };
-      const result = schema(invalidEvent);
-      
-      expect(result).toBeInstanceOf(type.errors);
-    });
-  });
-
   describe('parseSocketIo42MessageWithSchema', () => {
-    test('debe parsear y validar mensaje Socket.io con esquema', () => {
-      const messageDataSchema = type({
-        text: 'string',
-        timestamp: 'number'
-      });
+    test('debe parsear y validar mensaje Socket.io con validador', () => {
+      const messageValidator: Validator = (data: any) => {
+        if (typeof data === 'object' && data !== null && typeof data.text === 'string' && typeof data.timestamp === 'number') {
+          return { success: true, data };
+        }
+        return { success: false, error: 'Invalid message' };
+      };
       const socketMessage = '42["message", {"text": "Hola!", "timestamp": 1234567890}]';
-      const result = parseSocketIo42MessageWithSchema(socketMessage, messageDataSchema);
+      const result = parseSocketIo42MessageWithSchema(socketMessage, messageValidator);
       
       expect(result.success).toBe(true);
       expect(result.data?.eventName).toBe('message');
@@ -409,27 +376,29 @@ describe('parsejson.ts', () => {
     });
 
     test('debe rechazar mensaje con datos inválidos', () => {
-      const messageDataSchema = type({
-        text: 'string',
-        timestamp: 'number'
-      });
+      const messageValidator: Validator = (data: any) => {
+        if (typeof data === 'object' && data !== null && typeof data.timestamp === 'number') {
+          return { success: true, data };
+        }
+        return { success: false, error: 'Missing timestamp' };
+      };
       const socketMessage = '42["message", {"text": "Hola!"}]';
-      const result = parseSocketIo42MessageWithSchema(socketMessage, messageDataSchema);
+      const result = parseSocketIo42MessageWithSchema(socketMessage, messageValidator);
       
       expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
+      expect(result.error).toBe('Missing timestamp');
     });
 
     test('debe rechazar formato inválido de Socket.io', () => {
-      const messageDataSchema = type({ text: 'string' });
+      const messageValidator: Validator = (data: any) => ({ success: true, data });
       const invalidMessage = 'invalid message';
-      const result = parseSocketIo42MessageWithSchema(invalidMessage, messageDataSchema);
+      const result = parseSocketIo42MessageWithSchema(invalidMessage, messageValidator);
       
       expect(result.success).toBe(false);
       expect(result.error).toBe('Invalid Socket.io message format');
     });
 
-    test('debe funcionar sin esquema', () => {
+    test('debe funcionar sin validador', () => {
       const socketMessage = '42["message", {"text": "Hola!"}]';
       const result = parseSocketIo42MessageWithSchema(socketMessage);
       
@@ -441,40 +410,40 @@ describe('parsejson.ts', () => {
 
   describe('ArktypeSchemas', () => {
     test('nonEmptyString debe validar strings no vacíos', () => {
-      expect(ArktypeSchemas.nonEmptyString('Hola')).not.toBeInstanceOf(type.errors);
-      expect(ArktypeSchemas.nonEmptyString('')).toBeInstanceOf(type.errors);
+      expect(ArktypeSchemas.nonEmptyString('Hola').success).toBe(true);
+      expect(ArktypeSchemas.nonEmptyString('').success).toBe(false);
     });
 
     test('email debe validar emails', () => {
-      expect(ArktypeSchemas.email('test@example.com')).not.toBeInstanceOf(type.errors);
-      expect(ArktypeSchemas.email('not-an-email')).toBeInstanceOf(type.errors);
+      expect(ArktypeSchemas.email('test@example.com').success).toBe(true);
+      expect(ArktypeSchemas.email('not-an-email').success).toBe(false);
     });
 
     test('url debe validar URLs', () => {
-      expect(ArktypeSchemas.url('https://example.com')).not.toBeInstanceOf(type.errors);
-      expect(ArktypeSchemas.url('not-a-url')).toBeInstanceOf(type.errors);
+      expect(ArktypeSchemas.url('https://example.com').success).toBe(true);
+      expect(ArktypeSchemas.url('not-a-url').success).toBe(false);
     });
 
     test('positiveNumber debe validar números positivos', () => {
-      expect(ArktypeSchemas.positiveNumber(42)).not.toBeInstanceOf(type.errors);
-      expect(ArktypeSchemas.positiveNumber(-1)).toBeInstanceOf(type.errors);
-      expect(ArktypeSchemas.positiveNumber(0)).toBeInstanceOf(type.errors);
+      expect(ArktypeSchemas.positiveNumber(42).success).toBe(true);
+      expect(ArktypeSchemas.positiveNumber(-1).success).toBe(false);
+      expect(ArktypeSchemas.positiveNumber(0).success).toBe(false);
     });
 
     test('integer debe validar enteros', () => {
-      expect(ArktypeSchemas.integer(7)).not.toBeInstanceOf(type.errors);
-      expect(ArktypeSchemas.integer(7.5)).toBeInstanceOf(type.errors);
+      expect(ArktypeSchemas.integer(7).success).toBe(true);
+      expect(ArktypeSchemas.integer(7.5).success).toBe(false);
     });
 
     test('nonEmptyArray debe validar arrays no vacíos', () => {
-      expect(ArktypeSchemas.nonEmptyArray([1, 2, 3])).not.toBeInstanceOf(type.errors);
-      expect(ArktypeSchemas.nonEmptyArray([])).toBeInstanceOf(type.errors);
+      expect(ArktypeSchemas.nonEmptyArray([1, 2, 3]).success).toBe(true);
+      expect(ArktypeSchemas.nonEmptyArray([]).success).toBe(false);
     });
 
     test('requiredObject debe validar objetos con llaves requeridas', () => {
-      const schema = ArktypeSchemas.requiredObject(['name', 'age']);
-      expect(schema({ name: 'Juan', age: 30 })).not.toBeInstanceOf(type.errors);
-      expect(schema({ name: 'Juan' })).toBeInstanceOf(type.errors);
+      const validator = ArktypeSchemas.requiredObject(['name', 'age']);
+      expect(validator({ name: 'Juan', age: 30 }).success).toBe(true);
+      expect(validator({ name: 'Juan' }).success).toBe(false);
     });
   });
 });

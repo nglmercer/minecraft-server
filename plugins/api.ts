@@ -1,6 +1,5 @@
 import { type IPlugin, type PluginContext } from "bun_plugins";
 import { ApiSchemas } from "../src/utils/parsejson";
-import { type } from "arktype";
 import { type Server, type ServerWebSocket } from "bun";
 
 // WS API Request/Response types
@@ -103,22 +102,22 @@ export class ApiPlugin implements IPlugin {
       switch (path) {
         case "/write": {
           const result = ApiSchemas.write(body);
-          if (result instanceof type.errors) {
-            return Response.json({ success: false, error: result.summary }, { status: 400 });
+          if (!result.success) {
+            return Response.json({ success: false, error: result.error }, { status: 400 });
           }
-          this.context.emit("server:write", result.command);
+          this.context.emit("server:write", result.data.command);
           return Response.json({ success: true, message: "Command sent" });
         }
 
         case "/write-batch": {
           const result = ApiSchemas.writeBatch(body);
-          if (result instanceof type.errors) {
-            return Response.json({ success: false, error: result.summary }, { status: 400 });
+          if (!result.success) {
+            return Response.json({ success: false, error: result.error }, { status: 400 });
           }
-          for (const cmd of result.commands) {
+          for (const cmd of result.data.commands) {
             this.context.emit("server:write", cmd);
           }
-          return Response.json({ success: true, message: `${result.commands.length} commands sent` });
+          return Response.json({ success: true, message: `${result.data.commands.length} commands sent` });
         }
 
         case "/server/start":
@@ -151,11 +150,11 @@ export class ApiPlugin implements IPlugin {
 
   private handleWsMessage(ws: ServerWebSocket<undefined>, data: unknown): void {
     const result = ApiSchemas.wsCommand(data);
-    if (!(result instanceof type.errors)) {
-      this.context.emit("server:write", result.command);
-      ws.send(JSON.stringify({ type: "response", message: `Command '${result.command}' executed` }));
+    if (result.success) {
+      this.context.emit("server:write", result.data.command);
+      ws.send(JSON.stringify({ type: "response", message: `Command '${result.data.command}' executed` }));
     } else {
-      ws.send(JSON.stringify({ type: "error", message: "Invalid command format" }));
+      ws.send(JSON.stringify({ type: "error", message: result.error }));
     }
   }
 

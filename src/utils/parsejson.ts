@@ -1,5 +1,3 @@
-import { type } from 'arktype';
-
 /**
  * Interfaz por defecto para el retorno
  */
@@ -16,6 +14,18 @@ export interface ParseResult<T = any> {
   data?: T;
   error?: string;
 }
+
+/**
+ * Resultado de validación manual
+ */
+export type ValidationResult<T = any> = 
+  | { success: true; data: T }
+  | { success: false; error: string };
+
+/**
+ * Tipo para una función validadora
+ */
+export type Validator<T = any> = (data: any) => ValidationResult<T>;
 
 /**
  * Parsea un mensaje de Socket.io 42 con mapeo de llaves opcional.
@@ -56,6 +66,7 @@ export function parseSocketIo42Message<
 
   return null;
 }
+
 export enum SocketIoPacketType {
   OPEN = '0',
   CLOSE = '1',
@@ -75,6 +86,7 @@ export enum SocketIoMessageType {
   BINARY_EVENT = '5',
   BINARY_ACK = '6',
 }
+
 export function SocketIoMessage(message: string) {
   if (!message || message.length < 1) return null;
 
@@ -94,6 +106,7 @@ export function SocketIoMessage(message: string) {
     payloadRaw
   };
 }
+
 /**
  * Parsea un string JSON genérico con manejo de errores
  * @param jsonString - String JSON a parsear
@@ -122,33 +135,33 @@ export function parseJson<T = any>(jsonString: string): ParseResult<T> {
 }
 
 /**
- * Parsea un string JSON y valida contra un esquema arktype
+ * Parsea un string JSON y valida contra un validador
  * @param jsonString - String JSON a parsear
- * @param schema - Esquema arktype para validar
+ * @param validator - Función validadora
  * @returns ParseResult con el resultado del parseo y validación
  */
 export function parseJsonWithSchema<T = any>(
   jsonString: string,
-  schema: ReturnType<typeof type<any>>
+  validator: Validator<T>
 ): ParseResult<T> {
-  const parseResult = parseJson<T>(jsonString);
+  const parseResult = parseJson<any>(jsonString);
   
   if (!parseResult.success) {
     return parseResult;
   }
 
-  const validation = schema(parseResult.data);
+  const validation = validator(parseResult.data);
   
-  if (validation instanceof type.errors) {
+  if (!validation.success) {
     return {
       success: false,
-      error: validation.summary
+      error: validation.error
     };
   }
 
   return {
     success: true,
-    data: validation as T
+    data: validation.data
   };
 }
 
@@ -178,38 +191,40 @@ export function parseJsonArray<T = any>(jsonString: string): ParseResult<T[]> {
 }
 
 /**
- * Parsea un string JSON que debe ser un array y valida contra un esquema arktype
+ * Parsea un string JSON que debe ser un array y valida cada elemento con un validador
  * @param jsonString - String JSON a parsear
- * @param schema - Esquema arktype para validar cada elemento del array
+ * @param validator - Función validadora para cada elemento del array
  * @returns ParseResult con el array validado
  */
 export function parseJsonArrayWithSchema<T = any>(
   jsonString: string,
-  schema: ReturnType<typeof type<any>>
+  validator: Validator<T>
 ): ParseResult<T[]> {
-  const parseResult = parseJsonArray<T>(jsonString);
+  const parseResult = parseJsonArray<any>(jsonString);
   
   if (!parseResult.success) {
     return parseResult;
   }
 
+  const validatedData: T[] = [];
+
   // Validar cada elemento del array
   for (let i = 0; i < parseResult.data!.length; i++) {
-    const validation = schema(parseResult.data![i]);
+    const validation = validator(parseResult.data![i]);
     
-    if (validation instanceof type.errors) {
+    if (!validation.success) {
       return {
         success: false,
-        error: `Error at index ${i}: ${validation.summary}`
+        error: `Error at index ${i}: ${validation.error}`
       };
     }
     
-    parseResult.data![i] = validation as T;
+    validatedData.push(validation.data);
   }
 
   return {
     success: true,
-    data: parseResult.data
+    data: validatedData
   };
 }
 
@@ -239,33 +254,33 @@ export function parseJsonObject<T = Record<string, any>>(jsonString: string): Pa
 }
 
 /**
- * Parsea un string JSON que debe ser un objeto y valida contra un esquema arktype
+ * Parsea un string JSON que debe ser un objeto y valida con un validador
  * @param jsonString - String JSON a parsear
- * @param schema - Esquema arktype para validar el objeto
+ * @param validator - Función validadora para el objeto
  * @returns ParseResult con el objeto validado
  */
 export function parseJsonObjectWithSchema<T = Record<string, any>>(
   jsonString: string,
-  schema: ReturnType<typeof type<any>>
+  validator: Validator<T>
 ): ParseResult<T> {
-  const parseResult = parseJsonObject<T>(jsonString);
+  const parseResult = parseJsonObject<any>(jsonString);
   
   if (!parseResult.success) {
     return parseResult;
   }
 
-  const validation = schema(parseResult.data);
+  const validation = validator(parseResult.data);
   
-  if (validation instanceof type.errors) {
+  if (!validation.success) {
     return {
       success: false,
-      error: validation.summary
+      error: validation.error
     };
   }
 
   return {
     success: true,
-    data: validation as T
+    data: validation.data
   };
 }
 
@@ -400,33 +415,14 @@ export function parseAndFormatJson(jsonString: string, indent: number = 2): Pars
 }
 
 /**
- * Crea un esquema arktype para SocketIoEvent
- * @param dataTypeSchema - Esquema opcional para el tipo de datos
- * @returns Esquema arktype para SocketIoEvent
- */
-export function createSocketIoEventSchema<T = any>(dataTypeSchema?: ReturnType<typeof type<any>>) {
-  if (dataTypeSchema) {
-    return type({
-      eventName: 'string',
-      data: dataTypeSchema
-    });
-  }
-  
-  return type({
-    eventName: 'string',
-    data: 'unknown'
-  });
-}
-
-/**
- * Parsea un mensaje de Socket.io 42 con validación de esquema arktype
+ * Parsea un mensaje de Socket.io 42 con validación manual
  * @param message - El string crudo del socket (ej: '42["chat", {}]')
- * @param schema - Esquema arktype para validar los datos
+ * @param validator - Validador opcional para los datos
  * @returns ParseResult con el evento validado
  */
 export function parseSocketIo42MessageWithSchema<T = any>(
   message: string,
-  schema?: ReturnType<typeof type<any>>
+  validator?: Validator<T>
 ): ParseResult<SocketIoEvent<T>> {
   const parsed = parseSocketIo42Message<T>(message);
   
@@ -437,82 +433,113 @@ export function parseSocketIo42MessageWithSchema<T = any>(
     };
   }
 
-  const eventSchema = createSocketIoEventSchema(schema);
-  const validation = eventSchema(parsed);
-  
-  if (validation instanceof type.errors) {
+  if (validator) {
+    const validation = validator(parsed.data);
+    if (!validation.success) {
+      return {
+        success: false,
+        error: validation.error
+      };
+    }
     return {
-      success: false,
-      error: validation.summary
+      success: true,
+      data: {
+        eventName: parsed.eventName,
+        data: validation.data
+      }
     };
   }
 
   return {
     success: true,
-    data: validation as SocketIoEvent<T>
+    data: parsed
   };
 }
 
 /**
- * Tipos de utilidad para arktype
+ * Esquemas de validación manual (reemplazan a Arktype)
  */
 export const ArktypeSchemas = {
-  /**
-   * Esquema para strings no vacíos
-   */
-  nonEmptyString: type('string > 0'),
+  /** Valida strings no vacíos */
+  nonEmptyString: (data: any): ValidationResult<string> => {
+    if (typeof data === 'string' && data.length > 0) return { success: true, data };
+    return { success: false, error: 'Must be a non-empty string' };
+  },
   
-  /**
-   * Esquema para emails
-   */
-  email: type('string.email'),
+  /** Valida emails (simplificado) */
+  email: (data: any): ValidationResult<string> => {
+    if (typeof data === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data)) return { success: true, data };
+    return { success: false, error: 'Must be a valid email' };
+  },
   
-  /**
-   * Esquema para URLs
-   */
-  url: type('string.url'),
+  /** Valida URLs (simplificado) */
+  url: (data: any): ValidationResult<string> => {
+    try {
+      if (typeof data === 'string') {
+        new URL(data);
+        return { success: true, data };
+      }
+    } catch {}
+    return { success: false, error: 'Must be a valid URL' };
+  },
   
-  /**
-   * Esquema para números positivos
-   */
-  positiveNumber: type('number > 0'),
+  /** Valida números positivos */
+  positiveNumber: (data: any): ValidationResult<number> => {
+    if (typeof data === 'number' && data > 0) return { success: true, data };
+    return { success: false, error: 'Must be a positive number' };
+  },
   
-  /**
-   * Esquema para números enteros
-   */
-  integer: type('number.integer'),
+  /** Valida números enteros */
+  integer: (data: any): ValidationResult<number> => {
+    if (typeof data === 'number' && Number.isInteger(data)) return { success: true, data };
+    return { success: false, error: 'Must be an integer' };
+  },
   
-  /**
-   * Esquema para arrays no vacíos
-   */
-  nonEmptyArray: type("unknown[] > 0"),
+  /** Valida arrays no vacíos */
+  nonEmptyArray: <T>(data: any): ValidationResult<T[]> => {
+    if (Array.isArray(data) && data.length > 0) return { success: true, data };
+    return { success: false, error: 'Must be a non-empty array' };
+  },
   
-  /**
-   * Esquema para objetos con propiedades requeridas
-   */
-  requiredObject: (requiredKeys: string[]) => type({
-    ...Object.fromEntries(requiredKeys.map(key => [key, 'unknown']))
-  })
+  /** Valida objetos con llaves requeridas */
+  requiredObject: (requiredKeys: string[]): Validator<Record<string, any>> => {
+    return (data: any) => {
+      if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+        return { success: false, error: 'Must be an object' };
+      }
+      for (const key of requiredKeys) {
+        if (!(key in data)) return { success: false, error: `Missing required key: ${key}` };
+      }
+      return { success: true, data };
+    };
+  }
 };
 
 /**
- * Arktype schemas specifically for the API plugin
+ * Schemas for the API plugin (manual validation)
  */
 export const ApiSchemas = {
   /** Schema for /write endpoint */
-  write: type({
-    command: 'string > 0'
-  }),
+  write: (data: any): ValidationResult<{ command: string }> => {
+    if (typeof data === 'object' && data !== null && typeof data.command === 'string' && data.command.length > 0) {
+      return { success: true, data: data as { command: string } };
+    }
+    return { success: false, error: 'Invalid data for /write: command must be a non-empty string' };
+  },
   
   /** Schema for /write-batch endpoint */
-  writeBatch: type({
-    commands: 'string[] > 0'
-  }),
+  writeBatch: (data: any): ValidationResult<{ commands: string[] }> => {
+    if (typeof data === 'object' && data !== null && Array.isArray(data.commands) && data.commands.length > 0 && data.commands.every((c: any) => typeof c === 'string')) {
+      return { success: true, data: data as { commands: string[] } };
+    }
+    return { success: false, error: 'Invalid data for /write-batch: commands must be a non-empty array of strings' };
+  },
   
   /** Schema for WebSocket command messages */
-  wsCommand: type({
-    type: "'command'",
-    command: 'string > 0'
-  })
+  wsCommand: (data: any): ValidationResult<{ type: 'command'; command: string }> => {
+    if (typeof data === 'object' && data !== null && data.type === 'command' && typeof data.command === 'string' && data.command.length > 0) {
+      return { success: true, data: data as { type: 'command'; command: string } };
+    }
+    return { success: false, error: 'Invalid WebSocket command: type must be "command" and command must be a non-empty string' };
+  }
 };
-
