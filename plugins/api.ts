@@ -19,10 +19,18 @@ export class ApiPlugin implements IPlugin {
   private router: ApiRouter = new ApiRouter();
 
   // Environment configuration
-  private readonly PORT = process.env.API_PORT ? parseInt(process.env.API_PORT) : 9091;
+  private PORT = process.env.API_PORT ? parseInt(process.env.API_PORT) : 9091;
 
-  onLoad(context: PluginContext): void {
+  async onLoad(context: PluginContext): Promise<void> {
     this.context = context;
+    const {storage} = context;
+    const serverPort = await storage.get("PORT", this.PORT);
+    if (serverPort && !isNaN(serverPort) && serverPort !== this.PORT) {
+      this.PORT = serverPort;
+    } else {
+      await storage.set("PORT", this.PORT);
+    }
+
     this.setupRoutes();
     this.startServer();
     this.setupEventListeners();

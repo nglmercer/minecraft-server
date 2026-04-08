@@ -34,14 +34,14 @@ const cleanPtyOutput = (message: string): string | null => {
   return clean;
 };
 
-const formatLog = (name: string, color: ColorName, message: string) => {
+const formatLog = (name: string, color: ColorName, message: string, options?: { timestamp?: boolean }) => {
   const cleanedMessage = cleanPtyOutput(message);
   if (!cleanedMessage) return null;
 
   const ansi = COLORS[color] || COLORS.reset;
-  const timestamp = new Date().toLocaleTimeString();
+  const timestamp = options?.timestamp !== false ? `[${new Date().toLocaleTimeString()}] ` : "";
 
-  return `${ansi}[${timestamp}] [${name}]${COLORS.reset} ${cleanedMessage}`;
+  return `${ansi}${timestamp}[${name}]${COLORS.reset} ${cleanedMessage}`;
 };
 
 type ServiceProc = Subprocess<"pipe", "pipe", "pipe">;
@@ -53,9 +53,14 @@ export abstract class BaseService
   protected proc?: ServiceProc;
   // Buffer para acumular fragmentos de la PTY
   private lineBuffer: string = "";
+  protected options: { timestamp?: boolean } = { timestamp: true };
 
   public abstract readonly name: string;
   public abstract readonly themeColor: ColorName;
+
+  public setOptions(options: { timestamp?: boolean }) {
+    this.options = { ...this.options, ...options };
+  }
 
   async launch(cmd: string[], env: Record<string, string> = {}) {
     try {
@@ -87,7 +92,7 @@ export abstract class BaseService
       // No llamamos a processStreams() estándar porque usamos el callback 'data' del PTY
     } catch (err) {
       const msg = `Fallo al iniciar: ${err instanceof Error ? err.message : String(err)}`;
-      console.error(formatLog(this.name, "red", msg));
+      console.error(formatLog(this.name, "red", msg, this.options));
       throw err;
     }
   }
@@ -96,7 +101,18 @@ export abstract class BaseService
   private handlePtyData(chunk: string) {
     this.lineBuffer += chunk;
 
-    if (cleanPtyOutput(chunk)) this.broadcast("data", chunk);
+    // Split by newlines and handle each complete line
+    const lines = this.lineBuffer.split(/\r?\n/);
+    
+    // The last element is either an empty string (if chunk ended with \n)
+    // or a partial line (if it didn't)
+    this.lineBuffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (line.trim()) {
+        this.broadcast("data", line);
+      }
+    }
   }
 
   private broadcast(event: "data" | "error", rawText: string) {
@@ -104,7 +120,7 @@ export abstract class BaseService
     this.handleLogic(rawText);
 
     // Formatear log bonito
-    const formatted = formatLog(this.name, this.themeColor, rawText);
+    const formatted = formatLog(this.name, this.themeColor, rawText, this.options);
 
     if (formatted) {
       this.emit(event, formatted);

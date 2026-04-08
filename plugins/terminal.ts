@@ -117,7 +117,7 @@ const formatTerminalOutput = (
     cleanedMessage = stripMinecraftHeader(cleanedMessage);
   }
   
-  const timestamp = options?.timestamp ? "[" + new Date().toLocaleTimeString() + "]" : "";
+  const timestamp = options?.timestamp ? "[" + new Date().toLocaleTimeString() + "] " : "";
   const color = options?.color || getLevelColor(level);
   const ansi = TERMINAL_COLORS[color];
   const reset = TERMINAL_COLORS.reset;

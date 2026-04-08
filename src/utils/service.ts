@@ -26,12 +26,12 @@ const cleanPtyOutput = (message: string): string | null => {
   return clean;
 };
 
-const formatLog = (name: string, color: ColorName, message: string) => {
+const formatLog = (name: string, color: ColorName, message: string, options?: { timestamp?: boolean }) => {
   const cleanedMessage = cleanPtyOutput(message);
   if (!cleanedMessage) return null;
   const ansi = COLORS[color] || COLORS.reset;
-  const timestamp = new Date().toLocaleTimeString();
-  return `${ansi}[${timestamp}] [${name}]${COLORS.reset} ${cleanedMessage}`;
+  const timestamp = options?.timestamp !== false ? `[${new Date().toLocaleTimeString()}] ` : "";
+  return `${ansi}${timestamp}[${name}]${COLORS.reset} ${cleanedMessage}`;
 };
 
 type ServiceProc = Subprocess<"pipe", "pipe", "pipe">;
@@ -39,9 +39,14 @@ type ServiceProc = Subprocess<"pipe", "pipe", "pipe">;
 export abstract class BaseService extends EventEmitter implements AsyncDisposable {
   protected proc?: ServiceProc;
   private lineBuffer: string = "";
+  protected options: { timestamp?: boolean } = { timestamp: false };
 
   public abstract readonly name: string;
   public abstract readonly themeColor: ColorName;
+
+  public setOptions(options: { timestamp?: boolean }) {
+    this.options = { ...this.options, ...options };
+  }
 
   async launch(cmd: string[], env: Record<string, string> = {}) {
     try {
@@ -68,19 +73,31 @@ export abstract class BaseService extends EventEmitter implements AsyncDisposabl
       
     } catch (err) {
       const msg = `Fallo al iniciar: ${err instanceof Error ? err.message : String(err)}`;
-      console.error(formatLog(this.name, "red", msg));
+      console.error(formatLog(this.name, "red", msg, this.options));
       throw err;
     }
   }
 
   private handlePtyData(chunk: string) {
     this.lineBuffer += chunk;
-    if (cleanPtyOutput(chunk)) this.broadcast("data", chunk);
+    
+    // Split by newlines and handle each complete line
+    const lines = this.lineBuffer.split(/\r?\n/);
+    
+    // The last element is either an empty string (if chunk ended with \n)
+    // or a partial line (if it didn't)
+    this.lineBuffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (line.trim()) {
+        this.broadcast("data", line);
+      }
+    }
   }
 
   private broadcast(event: "data" | "error", rawText: string) {
     this.handleLogic(rawText);
-    const formatted = formatLog(this.name, this.themeColor, rawText);
+    const formatted = formatLog(this.name, this.themeColor, rawText, this.options);
     if (formatted) {
       this.emit(event, formatted);
     }
