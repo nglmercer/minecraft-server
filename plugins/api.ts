@@ -15,9 +15,11 @@ export class ApiPlugin implements IPlugin {
   author = "Guardian Team";
 
   private context!: PluginContext;
-  private server: Server<undefined> | null = null;
-  private sockets = new Set<ServerWebSocket<undefined>>();
+  private server: Server<any> | null = null;
+  private sockets = new Set<ServerWebSocket<any>>();
   private router: ApiRouter = new ApiRouter();
+  private logHistory: Array<{ type: string; data: any }> = [];
+  private readonly MAX_HISTORY = 200;
 
   // Environment configuration
   private PORT = process.env.API_PORT ? parseInt(process.env.API_PORT) : 9091;
@@ -39,7 +41,7 @@ export class ApiPlugin implements IPlugin {
 
   async onUnload(): Promise<void> {
     if (this.server) {
-      this.server.stop();
+      await this.server.stop();
     }
   }
 
@@ -129,14 +131,13 @@ export class ApiPlugin implements IPlugin {
         const url = new URL(req.url);
 
         // Upgrade to WebSocket
-        if (url.pathname === "/ws") {
-          const success = server.upgrade(req, { data: undefined });
-          return success ? undefined : new Response("WebSocket upgrade failed", { status: 400 });
+        if (url.pathname === "/ws" || url.pathname === "/ws/") {
+          const success = server.upgrade(req);
+          if (success) return undefined;
+          return new Response("WebSocket upgrade failed", { status: 400 });
         }
-
         // Handle with router
         const response = await self.router.handle(req, server);
-        
         if (response) return response;
 
         return new Response("Not Found", { status: 404 });
@@ -148,6 +149,11 @@ export class ApiPlugin implements IPlugin {
         open(ws) {
           self.sockets.add(ws);
           ws.send(JSON.stringify({ type: "connected", message: "Welcome to Guardian API" }));
+          
+          // Send log history to new client
+          if (self.logHistory.length > 0) {
+            ws.send(JSON.stringify({ type: "history", data: self.logHistory }));
+          }
         },
         message(ws, message) {
           try {
@@ -179,16 +185,27 @@ export class ApiPlugin implements IPlugin {
   private setupEventListeners(): void {
     // Broadcast server output to all connected WebSockets
     this.context.on("output", (line) => {
-      this.broadcast({ type: "output", data: line });
+      const msg = { type: "output", data: line };
+      this.addToHistory(msg);
+      this.broadcast(msg);
     });
 
     this.context.on("log", (msg) => {
-      this.broadcast({ type: "log", data: msg });
+      const logMsg = { type: "log", data: msg };
+      this.addToHistory(logMsg);
+      this.broadcast(logMsg);
     });
 
     this.context.on("status", (status) => {
       this.broadcast({ type: "status", data: status });
     });
+  }
+
+  private addToHistory(msg: { type: string; data: any }): void {
+    this.logHistory.push(msg);
+    if (this.logHistory.length > this.MAX_HISTORY) {
+      this.logHistory.shift();
+    }
   }
 
   private broadcast(data: Record<string, unknown>): void {

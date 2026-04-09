@@ -22,4 +22,5 @@ export type WsIncomingMessage =
     | { type: 'output'; data: string }
     | { type: 'log'; data: { level?: string; message: string } | string }
     | { type: 'status'; data: string }
-    | { type: 'error'; message: string };
+    | { type: 'error'; message: string }
+    | { type: 'history'; data: Array<{ type: string; data: any }> };

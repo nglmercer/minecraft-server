@@ -44,6 +44,19 @@ const App = () => {
         });
     };
 
+    const appendLogs = (entries: Array<{ message: string, type?: LogLevel }>) => {
+        const time = new Date().toLocaleTimeString();
+        setLogs(prev => {
+            const newEntries = entries.map(e => ({ 
+                time, 
+                message: e.message, 
+                type: e.type || 'output' 
+            }));
+            const newLogs = [...prev, ...newEntries];
+            return newLogs.length > 200 ? newLogs.slice(newLogs.length - 200) : newLogs;
+        });
+    };
+
     const connectWS = () => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -58,19 +71,36 @@ const App = () => {
             try {
                 const msg = JSON.parse(event.data) as WsIncomingMessage;
                 
-                if (msg.type === 'output') {
-                    appendLog(msg.data, 'output');
-                } else if (msg.type === 'log') {
-                    if (typeof msg.data === 'string') {
-                        appendLog(msg.data, 'output');
-                    } else if (msg.data && typeof msg.data === 'object') {
-                        const level = (msg.data.level || 'output') as LogLevel;
-                        appendLog(msg.data.message, level);
+                const processMessage = (m: { type: string, data?: any, message?: string }) => {
+                    if (m.type === 'output') {
+                        appendLog(m.data, 'output');
+                    } else if (m.type === 'log') {
+                        if (typeof m.data === 'string') {
+                            appendLog(m.data, 'output');
+                        } else if (m.data && typeof m.data === 'object') {
+                            const level = (m.data.level || 'output') as LogLevel;
+                            appendLog(m.data.message, level);
+                        }
+                    } else if (m.type === 'status') {
+                        updateStatus();
+                    } else if (m.type === 'error') {
+                        appendLog(`Error: ${m.message}`, 'error');
                     }
-                } else if (msg.type === 'status') {
-                    updateStatus();
-                } else if (msg.type === 'error') {
-                    appendLog(`Error: ${msg.message}`, 'error');
+                };
+
+                if (msg.type === 'history') {
+                    const entries = msg.data.map(m => {
+                        if (m.type === 'output') return { message: m.data, type: 'output' as LogLevel };
+                        if (m.type === 'log') {
+                            if (typeof m.data === 'string') return { message: m.data, type: 'output' as LogLevel };
+                            return { message: m.data.message, type: (m.data.level || 'output') as LogLevel };
+                        }
+                        return null;
+                    }).filter(e => e !== null) as Array<{ message: string, type: LogLevel }>;
+                    
+                    appendLogs(entries);
+                } else {
+                    processMessage(msg);
                 }
             } catch (e) {
                 appendLog(`Raw: ${event.data}`);
