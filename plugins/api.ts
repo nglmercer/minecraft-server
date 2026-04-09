@@ -2,7 +2,7 @@ import { type IPlugin, type PluginContext } from "bun_plugins";
 import { ApiSchemas } from "../src/utils/parsejson";
 import { type Server, type ServerWebSocket } from "bun";
 import { ApiRouter, ApiRequest } from "../src/utils/api-handler";
-
+import index from "./web/index.html"
 /**
  * API Plugin that provides a REST and WebSocket interface for server control.
  * Uses a framework-like router for better organization and scalability.
@@ -124,6 +124,9 @@ export class ApiPlugin implements IPlugin {
         if (response) return response;
 
         return new Response("Not Found", { status: 404 });
+      },
+      routes: {
+        "/": index
       },
       websocket: {
         open(ws) {
