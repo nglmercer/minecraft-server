@@ -21,6 +21,10 @@ const Controls: FunctionComponent<ControlsProps> = (props) => {
                 <h2>Maintenance</h2>
                 <div style={{ display: "flex", "flex-direction": "column", gap: "0.5rem" }}>
                     <button class="btn-backup" onClick={() => props.onTriggerGenericAction('/backup/create', 'Backup')}>Create Backup</button>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <button class="btn-start" style={{ flex: 1 }} onClick={() => props.onTriggerGenericAction('/tunnel/start', 'Tunnel Start')}>Start</button>
+                        <button class="btn-stop" style={{ flex: 1 }} onClick={() => props.onTriggerGenericAction('/tunnel/stop', 'Tunnel Stop')}>Stop</button>
+                    </div>
                     <button class="btn-tunnel" onClick={() => props.onTriggerGenericAction('/tunnel/restart', 'Tunnel Restart')}>Restart Tunnel</button>
                 </div>
             </div>

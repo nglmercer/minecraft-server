@@ -208,6 +208,11 @@ export class TunnelPlugin implements IPlugin {
       });
 
       // Registrar manejadores de control
+      this.context.on("tunnel:start" as any, async () => {
+        log.info("Starting tunnel...");
+        await this.service?.start();
+      });
+
       this.context.on("tunnel:restart" as any, async () => {
         log.info("Restarting tunnel...");
         if (this.service) await this.service.stop();

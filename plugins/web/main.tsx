@@ -32,7 +32,7 @@ const App = () => {
             setStatus(response.data.status);
             setVersion(response.data.version);
         } else {
-            setStatus('disconnected');
+            //setStatus('disconnected');
         }
     };
 
@@ -79,7 +79,7 @@ const App = () => {
 
         ws.onclose = () => {
             appendLog('WebSocket connection closed. Retrying in 5s...', 'warn');
-            setStatus('disconnected');
+            //setStatus('disconnected');
             setTimeout(() => connectWS(), 5000);
         };
 
@@ -111,7 +111,7 @@ const App = () => {
         if (result.success) {
             appendLog(`${label} triggered`, 'info');
         } else {
-            appendLog(`Failed to trigger ${label}`, 'error');
+            appendLog(`Failed to trigger ${label}: ${path}`, 'error');
         }
     };
 

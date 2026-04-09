@@ -7,6 +7,7 @@ import index from "./web/index.html"
  * API Plugin that provides a REST and WebSocket interface for server control.
  * Uses a framework-like router for better organization and scalability.
  */
+let lastRequest: string = "";
 export class ApiPlugin implements IPlugin {
   name = "api-control";
   version = "1.0.0";
@@ -45,9 +46,14 @@ export class ApiPlugin implements IPlugin {
   private setupRoutes(): void {
     // Middleware for logging requests
     this.router.use((ctx) => {
+      const currentRequest = `${ctx.req.method} ${ctx.url.pathname}`;
+      if (lastRequest === currentRequest) {
+        return;
+      }
+      lastRequest = currentRequest;
       this.context.emit("log", { 
         level: "info", 
-        message: `API Request: ${ctx.req.method} ${ctx.url.pathname}` 
+        message: `API Request: ${currentRequest}` 
       });
     });
 
@@ -95,6 +101,16 @@ export class ApiPlugin implements IPlugin {
     this.router.post("/backup/create", () => {
       this.context.emit("backup:create", {});
       return ApiRequest.success("Backup trigger sent");
+    });
+
+    this.router.post("/tunnel/start", () => {
+      this.context.emit("tunnel:start", {});
+      return ApiRequest.success("Tunnel start signal sent");
+    });
+
+    this.router.post("/tunnel/stop", () => {
+      this.context.emit("tunnel:stop", {});
+      return ApiRequest.success("Tunnel stop signal sent");
     });
 
     this.router.post("/tunnel/restart", () => {

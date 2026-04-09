@@ -25,7 +25,7 @@ const BackupConstants = {
     BACKUP_PATH: "./backups",
     MAX_BACKUPS: 5,
     COMPRESSION_LEVEL: 6,
-    SOURCE_PATH: "./",
+    SOURCE_PATH: "./data/server",
   } as const,
   
   // File patterns

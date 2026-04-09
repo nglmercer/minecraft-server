@@ -12,9 +12,9 @@ const Header: FunctionComponent<HeaderProps> = (props) => {
                 <h1 style={{ margin: 0, "font-size": "1.5rem" }}>Guardian Panel</h1>
                 <span style={{ color: "var(--text-secondary)", "font-size": "0.875rem" }}>v{props.version}</span>
             </div>
-            <div class={`status-badge status-${props.status}`}>
+            {/* <div class={`status-badge status-${props.status}`}>
                 {props.status}
-            </div>
+            </div> */}
         </header>
     );
 };
