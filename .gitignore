@@ -40,3 +40,4 @@ dist-build/*
 config/config.yaml
 data/playit/playit
 storage/plugins/**
+backups/*

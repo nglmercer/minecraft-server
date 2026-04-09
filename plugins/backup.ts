@@ -1,5 +1,5 @@
 import path from "node:path";
-import { readdir, unlink, stat } from "node:fs/promises";
+import { readdir, unlink, stat, mkdir } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { z, type IPlugin, type PluginContext, type AppEvents } from "bun_plugins";
 import { Cron } from "croner";
@@ -162,6 +162,11 @@ export class BackupPlugin implements IPlugin {
       const backupDir = path.resolve(this.config.backupPath);
       const fullDestPath = path.join(backupDir, fileName);
 
+      // Ensure backup directory exists
+      if (!existsSync(backupDir)) {
+        await mkdir(backupDir, { recursive: true });
+      }
+
       this.context.emit("log", BackupConstants.LOGS.BACKUP_START);
 
       // Notify and prepare
@@ -224,7 +229,9 @@ export class BackupPlugin implements IPlugin {
       if (entry.isDirectory()) {
         await this.scanDirectory(root, fullPath, exclude, map);
       } else {
-        map[relPath] = Bun.file(fullPath);
+        const file = Bun.file(fullPath);
+        const buffer = await file.arrayBuffer();
+        map[relPath] = new Uint8Array(buffer);
       }
     }
   }

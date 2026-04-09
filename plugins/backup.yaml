@@ -4,4 +4,4 @@ backupPath: ./backups
 maxBackupsToKeep: 5
 timeZone: America/Lima
 compressionLevel: 6
-sourcePath: ./
+sourcePath: ./data/server
