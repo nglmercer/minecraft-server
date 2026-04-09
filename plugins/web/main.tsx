@@ -127,7 +127,7 @@ const App = () => {
     }, []);
 
     return (
-        <div class="container" style={{ height: "100%", display: "flex", "flex-direction": "column" }}>
+        <div class="container">
             <Header version={version} status={status} />
 
             <main class="grid">

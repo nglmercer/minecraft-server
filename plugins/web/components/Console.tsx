@@ -29,8 +29,16 @@ const Console: FunctionComponent<ConsoleProps> = (props) => {
 
     return (
         <section class="card console-container">
-            <h2>Console</h2>
+            <h2>
+                <i class="fas fa-terminal"></i>
+                Console
+            </h2>
             <div class="console" ref={consoleRef}>
+                {props.logs.length === 0 && (
+                    <div class="console-line" style={{ opacity: 0.5, fontStyle: "italic" }}>
+                        Waiting for server logs...
+                    </div>
+                )}
                 {props.logs.map((log, index) => (
                     <div key={index} class="console-line">
                         <span class="line-time">[{log.time}]</span>
@@ -41,11 +49,14 @@ const Console: FunctionComponent<ConsoleProps> = (props) => {
             <form class="command-input-container" onSubmit={handleSubmit}>
                 <input 
                     type="text" 
-                    placeholder="Type a command..." 
+                    placeholder="Type a server command (e.g. say Hello)..." 
                     value={commandInput} 
                     onInput={(e) => setCommandInput(e.currentTarget.value)}
                 />
-                <button type="submit">Send</button>
+                <button type="submit">
+                    <i class="fas fa-paper-plane"></i>
+                    Send
+                </button>
             </form>
         </section>
     );
