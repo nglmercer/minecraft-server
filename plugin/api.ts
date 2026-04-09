@@ -2,6 +2,8 @@ import { type IPlugin, type PluginContext } from "bun_plugins";
 import { ApiSchemas } from "../src/utils/parsejson";
 import { type Server, type ServerWebSocket } from "bun";
 import { ApiRouter, ApiRequest } from "../src/utils/api-handler";
+import { Config } from "../src/services/config.service";
+import { BackupManager } from "../src/utils/backup-manager";
 import { join } from "path";
 //import index from "./web/index.html";
 /**
@@ -22,12 +24,22 @@ export class ApiPlugin implements IPlugin {
   private logHistory: Array<{ type: string; data: any }> = [];
   private readonly MAX_HISTORY = 200;
 
+  private backupManager!: BackupManager;
+
   // Environment configuration
   private PORT = process.env.API_PORT ? parseInt(process.env.API_PORT) : 9091;
 
   async onLoad(context: PluginContext): Promise<void> {
     this.context = context;
-    const {storage} = context;
+
+    const config = Config.getInstance();
+    config.loadSync();
+    this.backupManager = new BackupManager({
+      backupsDir: config.paths.backups,
+      serverDir: config.server.cwd,
+    });
+
+    const { storage } = context;
     const serverPort = await storage.get("PORT", this.PORT);
     if (serverPort && !isNaN(serverPort) && serverPort !== this.PORT) {
       this.PORT = serverPort;
@@ -104,6 +116,54 @@ export class ApiPlugin implements IPlugin {
     this.router.post("/backup/create", () => {
       this.context.emit("backup:create", {});
       return ApiRequest.success("Backup trigger sent");
+    });
+
+    this.router.get("/backups", async () => {
+      const backups = await this.backupManager.listBackups();
+      return ApiRequest.success("Backups fetched", { data: backups });
+    });
+
+    this.router.get("/backup/download/:name", async (ctx) => {
+      const name = ctx.params.name;
+      if (!name) return ApiRequest.error("Backup name is required", 400);
+      return await this.backupManager.createDownloadResponse(name);
+    });
+
+    this.router.post(
+      "/backup/restore",
+      async (ctx) => {
+        const name = ctx.body.name;
+
+        this.context.emit("log", {
+          level: "warn",
+          message: `Restore requested: ${name}`,
+        });
+
+        this.context.emit("server:stop", {});
+        const result = await this.backupManager.restoreBackup(name);
+
+        this.context.emit("log", {
+          level: "info",
+          message: `Restore completed: ${name}`,
+        });
+
+        return ApiRequest.success("Restore completed", { data: result });
+      },
+      ApiRouter.validateBody(ApiSchemas.backupRestore),
+    );
+
+    this.router.post("/backup/upload", async (ctx) => {
+      const form = await ctx.req.formData();
+      const file = form.get("file");
+      const requestedNameRaw = form.get("name");
+      const requestedName = typeof requestedNameRaw === "string" ? requestedNameRaw : undefined;
+
+      if (!(file instanceof File)) {
+        return ApiRequest.error("Missing file field 'file' (multipart/form-data)", 400);
+      }
+
+      const saved = await this.backupManager.uploadBackup(file, requestedName);
+      return ApiRequest.success("Backup uploaded", { data: saved });
     });
 
     this.router.post("/tunnel/start", () => {

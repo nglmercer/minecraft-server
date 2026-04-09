@@ -163,6 +163,7 @@ const App = () => {
                 <Controls 
                     onTriggerAction={triggerAction} 
                     onTriggerGenericAction={triggerGenericAction} 
+                    apiCall={apiCall}
                 />
             </main>
         </div>

@@ -12,7 +12,8 @@
   "scripts": {
     "start": "bun index.ts",
     "typecheck": "bunx tsc --noEmit",
-    "build": "bun build.ts"
+    "build": "bun build.ts"  ,
+    "build:plugins": "bun  ./plugin/builder.ts"
   },
   "dependencies": {
     "bun_plugins": "^1.2.7",

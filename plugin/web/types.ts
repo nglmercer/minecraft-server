@@ -18,6 +18,13 @@ export interface LogEntry {
     type: LogLevel;
 }
 
+export interface BackupEntry {
+    name: string;
+    size: number;
+    modifiedAtMs: number;
+    modifiedAt: string;
+}
+
 export type WsIncomingMessage = 
     | { type: 'output'; data: string }
     | { type: 'log'; data: { level?: string; message: string } | string }

@@ -541,5 +541,18 @@ export const ApiSchemas = {
       return { success: true, data: data as { type: 'command'; command: string } };
     }
     return { success: false, error: 'Invalid WebSocket command: type must be "command" and command must be a non-empty string' };
-  }
+  },
+
+  /** Schema for POST /backup/restore */
+  backupRestore: (data: any): ValidationResult<{ name: string }> => {
+    if (
+      typeof data === "object" &&
+      data !== null &&
+      typeof (data as any).name === "string" &&
+      (data as any).name.trim().length > 0
+    ) {
+      return { success: true, data: { name: (data as any).name.trim() } };
+    }
+    return { success: false, error: "Invalid data for /backup/restore: name must be a non-empty string" };
+  },
 };
