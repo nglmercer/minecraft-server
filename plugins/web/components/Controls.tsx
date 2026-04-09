@@ -1,11 +1,11 @@
-import { type Component } from "solid-js";
+import { type FunctionComponent } from "preact";
 
 interface ControlsProps {
     onTriggerAction: (action: string) => void;
     onTriggerGenericAction: (path: string, label: string) => void;
 }
 
-const Controls: Component<ControlsProps> = (props) => {
+const Controls: FunctionComponent<ControlsProps> = (props) => {
     return (
         <aside class="controls">
             <div class="card">

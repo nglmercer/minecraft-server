@@ -1,11 +1,11 @@
-import { type Component } from "solid-js";
+import { type FunctionComponent } from "preact";
 
 interface HeaderProps {
     version: string;
     status: string;
 }
 
-const Header: Component<HeaderProps> = (props) => {
+const Header: FunctionComponent<HeaderProps> = (props) => {
     return (
         <header class="header">
             <div style={{ display: "flex", "align-items": "baseline", gap: "1rem" }}>

@@ -1,16 +1,16 @@
-import { render } from "solid-js/web";
-import { createSignal, onMount, onCleanup } from "solid-js";
+import { render } from "preact";
+import { useState, useEffect, useRef } from "preact/hooks";
 import Header from "./components/Header.tsx";
 import Console from "./components/Console.tsx";
 import Controls from "./components/Controls.tsx";
 import type { ApiResponse, ServerStatus, LogLevel, LogEntry, WsIncomingMessage } from "./types.ts";
 
 const App = () => {
-    const [status, setStatus] = createSignal<string>('disconnected');
-    const [logs, setLogs] = createSignal<LogEntry[]>([]);
-    const [version, setVersion] = createSignal<string>('1.0.0');
+    const [status, setStatus] = useState<string>('disconnected');
+    const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [version, setVersion] = useState<string>('1.0.0');
 
-    let ws: WebSocket | null = null;
+    const wsRef = useRef<WebSocket | null>(null);
 
     const apiCall = async <T,>(path: string, method: string = 'GET', body?: unknown): Promise<ApiResponse<T>> => {
         try {
@@ -42,19 +42,13 @@ const App = () => {
             const newLogs = [...prev, { time, message, type }];
             return newLogs.length > 200 ? newLogs.slice(1) : newLogs;
         });
-
-        setTimeout(() => {
-            const consoleEl = document.querySelector('.console');
-            if (consoleEl) {
-                consoleEl.scrollTop = consoleEl.scrollHeight;
-            }
-        }, 50);
     };
 
     const connectWS = () => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
-        ws = new WebSocket(wsUrl);
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
 
         ws.onopen = () => {
             appendLog('Connected to WebSocket server', 'info');
@@ -121,23 +115,23 @@ const App = () => {
         }
     };
 
-    onMount(() => {
+    useEffect(() => {
         updateStatus();
         const statusInterval = setInterval(updateStatus, 10000);
         connectWS();
 
-        onCleanup(() => {
+        return () => {
             clearInterval(statusInterval);
-            if (ws) ws.close();
-        });
-    });
+            if (wsRef.current) wsRef.current.close();
+        };
+    }, []);
 
     return (
         <div class="container" style={{ height: "100%", display: "flex", "flex-direction": "column" }}>
-            <Header version={version()} status={status()} />
+            <Header version={version} status={status} />
 
             <main class="grid">
-                <Console logs={logs()} onSendCommand={sendCommand} />
+                <Console logs={logs} onSendCommand={sendCommand} />
                 <Controls 
                     onTriggerAction={triggerAction} 
                     onTriggerGenericAction={triggerGenericAction} 
@@ -147,4 +141,4 @@ const App = () => {
     );
 };
 
-render(() => <App />, document.getElementById("app")!);
+render(<App />, document.getElementById("app")!);

@@ -181,8 +181,18 @@ export class TunnelPlugin implements IPlugin {
       log.info("Starting playit.gg tunnel...", { existingToken: existingToken ? "Present" : "Missing" });
       
       this.service.on("data", (msg) => {
-        console.log("data",msg)
-        // Use the new structured output parsing
+        const result = this.service?.getCleanOutput(msg);
+        if (result && result.message) {
+          const level = result.level === "status" ? "info" : result.level;
+          this.context.emit("log", { 
+            level, 
+            message: `[Tunnel] ${result.message}` 
+          });
+
+          if (result.level === "status") {
+            this.context.emit("status", result.message);
+          }
+        }
       });
 
       this.service.on("error", (msg) => {
