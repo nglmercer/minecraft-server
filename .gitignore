@@ -41,3 +41,4 @@ config/config.yaml
 data/playit/playit
 storage/plugins/**
 backups/*
+dist-plugins/*

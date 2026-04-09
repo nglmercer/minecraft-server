@@ -1,7 +1,7 @@
 import path from "node:path";
 import { readdir, unlink, stat, mkdir } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
-import { z, type IPlugin, type PluginContext, type AppEvents } from "bun_plugins";
+import { type IPlugin, type PluginContext, type AppEvents } from "bun_plugins";
 import { Cron } from "croner";
 import {
   MinecraftCommands,
@@ -70,19 +70,13 @@ interface MinecraftPluginContext extends Omit<PluginContext, 'emit' | 'on'> {
   emit<K extends keyof MinecraftAppEvents>(event: K, payload: MinecraftAppEvents[K]): void;
   on<K extends keyof MinecraftAppEvents>(event: K, callback: (payload: MinecraftAppEvents[K]) => void): void;
 }
-
-/**
- * Esquema de configuración usando Zod
- */
-const BackupConfigSchema = z.object({
-  cronSchedule: z.string().default(BackupConstants.DEFAULTS.CRON_SCHEDULE),
-  backupPath: z.string().default(BackupConstants.DEFAULTS.BACKUP_PATH),
-  maxBackupsToKeep: z.number().int().min(1).default(BackupConstants.DEFAULTS.MAX_BACKUPS),
-  compressionLevel: z.number().int().min(1).max(12).default(BackupConstants.DEFAULTS.COMPRESSION_LEVEL),
-  sourcePath: z.string().default(BackupConstants.DEFAULTS.SOURCE_PATH)
-});
-
-type BackupConfig = z.infer<typeof BackupConfigSchema>;
+type BackupConfig = {
+    cronSchedule: string;
+    backupPath: string;
+    maxBackupsToKeep: number;
+    compressionLevel: number;
+    sourcePath: string;
+}
 
 export class BackupPlugin implements IPlugin {
   name = BackupConstants.NAME;
@@ -126,12 +120,10 @@ export class BackupPlugin implements IPlugin {
       sourcePath: BackupConstants.DEFAULTS.SOURCE_PATH,
     };
     if (!this.defaultConfig) {
-      await storage.set("backupConfig", BackupConfigSchema.parse(defaultConfig));
+      await storage.set("backupConfig", defaultConfig);
     }
-    const config = await storage.get("backupConfig") || defaultConfig;
-    this.config = BackupConfigSchema.parse(config);
-
-
+    const config = await storage.get("backupConfig") as BackupConfig || defaultConfig;
+    this.config = config;
   }
 
   private setupCron(): void {

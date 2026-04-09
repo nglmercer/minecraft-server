@@ -2,6 +2,7 @@ import { type IPlugin, type PluginContext } from "bun_plugins";
 import { ApiSchemas } from "../src/utils/parsejson";
 import { type Server, type ServerWebSocket } from "bun";
 import { ApiRouter, ApiRequest } from "../src/utils/api-handler";
+import { join } from "path";
 import index from "./web/index.html";
 /**
  * API Plugin that provides a REST and WebSocket interface for server control.
@@ -124,12 +125,19 @@ export class ApiPlugin implements IPlugin {
   private startServer(): void {
     const port = this.PORT;
     const self = this;
-
+    const webDir = join(import.meta.dir, "web");
     this.server = Bun.serve({
       port,
       async fetch(req, server) {
         const url = new URL(req.url);
-
+        if (url.pathname === "/" || url.pathname === "/index.html") {
+          return new Response(Bun.file(join(webDir, "index.html")));
+        }
+        if (url.pathname.endsWith(".js") || url.pathname.endsWith(".css") || url.pathname.endsWith(".html")) {
+          const filePath = join(webDir, url.pathname);
+          const file = Bun.file(filePath);
+          if (await file.exists()) return new Response(file);
+        }
         // Upgrade to WebSocket
         if (url.pathname === "/ws" || url.pathname === "/ws/") {
           const success = server.upgrade(req);
@@ -143,7 +151,7 @@ export class ApiPlugin implements IPlugin {
         return new Response("Not Found", { status: 404 });
       },
       routes: {
-        "/": index
+        "/web": index
       },
       websocket: {
         open(ws) {
