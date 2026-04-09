@@ -31,8 +31,6 @@ const App = () => {
         if (response.success && response.data) {
             setStatus(response.data.status);
             setVersion(response.data.version);
-        } else {
-            //setStatus('disconnected');
         }
     };
 
@@ -62,7 +60,7 @@ const App = () => {
         const wsUrl = `${protocol}//${window.location.host}/ws`;
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
-
+        setStatus('connected');
         ws.onopen = () => {
             appendLog('Connected to WebSocket server', 'info');
         };
@@ -109,7 +107,7 @@ const App = () => {
 
         ws.onclose = () => {
             appendLog('WebSocket connection closed. Retrying in 5s...', 'warn');
-            //setStatus('disconnected');
+            setStatus('disconnected');
             setTimeout(() => connectWS(), 5000);
         };
 
