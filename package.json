@@ -12,7 +12,7 @@
   "scripts": {
     "start": "bun index.ts",
     "typecheck": "bunx tsc --noEmit",
-    "build": "bun build.ts"  ,
+    "build": "bun build.ts",
     "build:plugins": "bun  ./plugin/builder.ts"
   },
   "dependencies": {
@@ -22,6 +22,7 @@
     "minecraft-core": "^1.0.2",
     "node-task-manager": "^2.2.0",
     "preact": "^10.29.1",
+    "tar-stream": "^3.1.8",
     "trigger_system": "^1.3.5"
   }
 }

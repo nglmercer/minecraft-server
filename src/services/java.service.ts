@@ -37,7 +37,10 @@ export async function getOrInstallJava(version = 21) {
   }
 
   // Download Java
-  const fileName = `${CoreService.JAVA_ZIP_PREFIX}${version}${CoreService.JAVA_ZIP_EXTENSION}`;
+  const isLinux = process.platform === 'linux';
+  const extension = isLinux ? '.tar.gz' : CoreService.JAVA_ZIP_EXTENSION;
+  const fileName = `${CoreService.JAVA_ZIP_PREFIX}${version}${extension}`;
+  
   const downloadTask = await JavaInfoService.downloadJavaRelease(
     release.data,
     fileName,
