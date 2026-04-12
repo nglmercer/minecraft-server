@@ -74,7 +74,7 @@ export const ConsoleMessages = {
   
   // Plugin related
   PLUGIN_LOADED: "Plugin loaded: {name} v{version}",
-  PLUGIN_ALREADY_REGISTERED: "Plugin {name} ya está registrado.",
+  PLUGIN_ALREADY_REGISTERED: "Plugin {name} is already registered.",
   PLUGIN_LOAD_ERROR: "Error loading plugin {name}: {error}",
 } as const;
 
@@ -182,8 +182,8 @@ export const GuardianMessages = {
   MANUAL_STOP: "Manual Stop",
   NORMAL_EXIT: "Normal Exit",
   CRASH_REASON: (code: number | null) => `Crash (Exit Code ${code ?? "Signal"})`,
-  PLUGIN_ALREADY_REGISTERED: (name: string) => `Plugin ${name} ya está registrado.`,
-  PLUGIN_LOADED: (name: string, version: string) => `Plugin loaded: ${name} v${version}`,
+  PLUGIN_ALREADY_REGISTERED: (name: string) => `Plugin ${name} is already registered.`,
+  PLUGIN_LOADED: (name: string, version: string) => `Plugin loaded: ${name} v{version}`,
   PLUGIN_LOAD_ERROR: (name: string, error: unknown) => `Error loading plugin ${name}: ${error}`,
 } as const;
 

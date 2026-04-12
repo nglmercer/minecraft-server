@@ -33,10 +33,10 @@ export class Guardian extends EventEmitter {
     this.config = config || Config.getInstance();
     this.pluginManager = pluginManager || new BasePluginManager();
 
-    // Seguridad: Si el proceso de Node/Bun muere, matar al hijo.
+    // Security: If Node/Bun process dies, kill the child.
     process.on("beforeExit", () => this.kill());
 
-    // Escuchar comandos enviados por los plugins
+    // Listen for commands sent by plugins
     this.pluginManager.on("server:write", (command: string) => {
       this.write(command);
     });
@@ -55,7 +55,7 @@ export class Guardian extends EventEmitter {
       await this.start();
     });
 
-    // Reenviar eventos internos a los plugins
+    // Forward internal events to plugins
     this.on(GuardianEvents.OUTPUT, (line) => this.pluginManager.emit("output", line));
     this.on(GuardianEvents.LOG, (msg) => this.pluginManager.emit("log", msg));
     this.on(GuardianEvents.ERROR, (err) => this.pluginManager.emit("error", err));
@@ -95,7 +95,7 @@ export class Guardian extends EventEmitter {
 
       this.setStatus("ONLINE");
 
-      // Esperar a que el proceso termine
+      // Wait for process to finish
       const exitCode = await this.process.exited;
       this.handleExit(exitCode);
     } catch (e) {
@@ -136,7 +136,7 @@ export class Guardian extends EventEmitter {
   }
 
   /**
-   * Detiene el servidor enviando comando y esperando, o matando si se cuelga.
+   * Stops the server by sending command and waiting, or killing if it hangs.
    */
   async stop() {
     if (this._status === "OFFLINE" || !this.process) return;
@@ -147,10 +147,10 @@ export class Guardian extends EventEmitter {
 
     this.write(MinecraftCommands.SAVE_STOP);
 
-    // Promesa que se resuelve si el proceso muere naturalmente
+    // Promise that resolves if the process dies naturally
     const exitPromise = this.process.exited;
 
-    // Timer para forzar el cierre
+    // Timer to force closure
     const timeoutPromise = new Promise<void>((_, reject) => {
       setTimeout(() => reject(new Error(ErrorMessages.TIMEOUT)), Timeouts.GRACEFUL_SHUTDOWN);
     });
@@ -164,11 +164,11 @@ export class Guardian extends EventEmitter {
   }
 
   /**
-   * Fuerza la muerte inmediata del proceso
+   * Forces immediate process death
    */
   kill() {
     if (this.process && !this.process.killed) {
-      this.process.kill(); // SIGKILL en Bun
+      this.process.kill(); // SIGKILL in Bun
     }
   }
 
@@ -180,14 +180,14 @@ export class Guardian extends EventEmitter {
   }
 
   protected handleExit(code: number | null) {
-    // Si ya es offline, evitar doble procesamiento
+    // If already offline, avoid double processing
     if (this._status === "OFFLINE" && !this.process) return;
 
     this.process = null;
     let isCrash = false;
     let reason: string = GuardianMessages.UNKNOWN;
 
-    // 0 = Normal, 130 = SIGINT (Ctrl+C manual), 143 = SIGTERM
+    // 0 = Normal, 130 = SIGINT (Manual Ctrl+C), 143 = SIGTERM
     if (this.intentionalStop) {
       reason = GuardianMessages.MANUAL_STOP;
     } else if (code === ExitCodes.SUCCESS || code === ExitCodes.SIGINT || code === ExitCodes.SIGTERM) {
@@ -205,7 +205,7 @@ export class Guardian extends EventEmitter {
       this.handleCrashRecovery();
     } else {
       this.setStatus("OFFLINE");
-      this.crashCount = 0; // Resetear contador en apagado limpio
+      this.crashCount = 0; // Reset counter on clean shutdown
     }
   }
 
@@ -229,8 +229,8 @@ export class Guardian extends EventEmitter {
   }
 
   /**
-   * Lee streams línea por línea utilizando un buffer para evitar
-   * cortar frases a la mitad. Preserva códigos de color ANSI.
+   * Reads streams line by line using a buffer to avoid
+   * cutting sentences in half. Preserves ANSI color codes.
    */
   private async processOutput(
     stream: ReadableStream | null,
@@ -240,23 +240,23 @@ export class Guardian extends EventEmitter {
 
     const reader = stream.getReader();
     const decoder = new TextDecoder();
-    let buffer = ""; // Acumulador de texto
+    let buffer = ""; // Text accumulator
 
     try {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        // Decodificar el chunk actual y añadirlo al buffer
+        // Decode current chunk and add it to buffer
         buffer += decoder.decode(value, { stream: true });
 
-        // Procesar líneas completas
+        // Process full lines
         let lineEndIndex;
         while ((lineEndIndex = buffer.indexOf("\n")) !== -1) {
           let line = buffer.substring(0, lineEndIndex);
           buffer = buffer.substring(lineEndIndex + 1);
 
-          // Convertir códigos de color de Minecraft (§) a códigos ANSI
+          // Convert Minecraft color codes (§) to ANSI codes
           if (supportsColor()) {
             line = convertMinecraftColors(line);
           }
@@ -268,7 +268,7 @@ export class Guardian extends EventEmitter {
         }
       }
 
-      // Procesar remanente si el stream se cierra sin un salto de línea final
+      // Process remainder if stream closes without a final newline
       if (buffer.trim()) {
         let line = buffer.trim();
         if (supportsColor()) {
@@ -277,7 +277,7 @@ export class Guardian extends EventEmitter {
         this.emit(GuardianEvents.OUTPUT, line);
       }
     } catch (e) {
-      // Ignorar errores de stream cerrado
+      // Ignore closed stream errors
     } finally {
       reader.releaseLock();
     }
