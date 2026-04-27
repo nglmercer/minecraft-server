@@ -15,7 +15,8 @@
     "dev": "bun run index.ts",
     "typecheck": "bunx tsc --noEmit",
     "build": "bun build.ts",
-    "build:plugins": "bun  ./plugin/builder.ts"
+    "build:plugins": "bun  ./plugin/builder.ts",
+    "build:mainplugin": "bun  ./buildmainplugin.ts"
   },
   "dependencies": {
     "bun_plugins": "^1.2.7",
