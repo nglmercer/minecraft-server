@@ -4,6 +4,7 @@ import { type Server, type ServerWebSocket } from "bun";
 import { ApiRouter, ApiRequest } from "../src/utils/api-handler";
 import { Config } from "../src/services/config.service";
 import { BackupManager } from "../src/utils/backup-manager";
+import { PropertiesManager } from "../src/utils/properties-manager";
 import { join } from "node:path";
 
 /**
@@ -26,6 +27,7 @@ export class ApiPlugin implements IPlugin {
   private readonly MAX_HISTORY = 200;
 
   private backupManager!: BackupManager;
+  private propertiesManager!: PropertiesManager;
   private currentStatus: string = "OFFLINE";
 
   // Environment configuration
@@ -40,6 +42,7 @@ export class ApiPlugin implements IPlugin {
       backupsDir: config.paths.backups,
       serverDir: config.server.cwd,
     });
+    this.propertiesManager = new PropertiesManager(config.server.cwd);
 
     const { storage } = context;
     const serverPort = await storage.get("PORT", this.PORT);
@@ -200,6 +203,27 @@ export class ApiPlugin implements IPlugin {
     this.router.post("/tunnel/restart", () => {
       this.context.emit("tunnel:restart", {});
       return ApiRequest.success("Tunnel restart signal sent");
+    });
+
+    // --- Properties Endpoints ---
+
+    this.router.get("/properties", async () => {
+      try {
+        const props = await this.propertiesManager.getProperties();
+        return ApiRequest.success("Properties fetched", { data: props });
+      } catch (e) {
+        return ApiRequest.error(`Failed to read properties: ${e}`);
+      }
+    });
+
+    this.router.post("/properties", async (ctx) => {
+      try {
+        const updates = await ctx.json();
+        await this.propertiesManager.updateProperties(updates);
+        return ApiRequest.success("Properties updated successfully");
+      } catch (e) {
+        return ApiRequest.error(`Failed to update properties: ${e}`);
+      }
     });
   }
 

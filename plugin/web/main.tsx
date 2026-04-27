@@ -3,12 +3,14 @@ import { useState, useEffect, useRef } from "preact/hooks";
 import Header from "./components/Header.tsx";
 import Console from "./components/Console.tsx";
 import Controls from "./components/Controls.tsx";
+import Properties from "./components/Properties.tsx";
 import type { ApiResponse, ServerStatus, LogLevel, LogEntry, WsIncomingMessage } from "./types.ts";
 
 const App = () => {
     const [status, setStatus] = useState<string>('disconnected');
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [version, setVersion] = useState<string>('1.0.0');
+    const [activeView, setActiveView] = useState<'console' | 'properties'>('console');
 
     const wsRef = useRef<WebSocket | null>(null);
 
@@ -158,8 +160,27 @@ const App = () => {
         <div class="container">
             <Header version={version} status={status} />
 
+            <div class="tabs glass" style={{ marginBottom: '20px', display: 'flex', gap: '10px', padding: '10px' }}>
+                <button 
+                    class={`btn ${activeView === 'console' ? 'btn-primary' : ''}`}
+                    onClick={() => setActiveView('console')}
+                >
+                    🖥️ Console
+                </button>
+                <button 
+                    class={`btn ${activeView === 'properties' ? 'btn-primary' : ''}`}
+                    onClick={() => setActiveView('properties')}
+                >
+                    ⚙️ Properties
+                </button>
+            </div>
+
             <main class="grid">
-                <Console logs={logs} onSendCommand={sendCommand} />
+                {activeView === 'console' ? (
+                    <Console logs={logs} onSendCommand={sendCommand} />
+                ) : (
+                    <Properties apiCall={apiCall} appendLog={appendLog} />
+                )}
                 <Controls 
                     onTriggerAction={triggerAction} 
                     onTriggerGenericAction={triggerGenericAction} 

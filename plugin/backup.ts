@@ -2,7 +2,7 @@ import path from "node:path";
 import { readdir, unlink, stat, mkdir } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { type IPlugin, type PluginContext, type AppEvents } from "bun_plugins";
-import { cron, type CronJob } from "bun";
+import { Cron } from "croner";
 import {
   MinecraftCommands,
   FileExtensions,
@@ -86,7 +86,7 @@ export class BackupPlugin implements IPlugin {
   defaultConfig?: BackupConfig;
   private context!: MinecraftPluginContext;
   private config!: BackupConfig;
-  private job: CronJob | null = null;
+  private job: Cron | null = null;
   private isBackingUp = false;
 
   async onLoad(context: PluginContext): Promise<void> {
@@ -129,12 +129,12 @@ export class BackupPlugin implements IPlugin {
   private setupCron(): void {
     try {
       // Usar croner para programar los respaldos
-      this.job = cron(this.config.cronSchedule, () => {
+      this.job = new Cron(this.config.cronSchedule, () => {
         this.performBackup();
       });
 
-      const nextDate = cron.parse(this.config.cronSchedule);
-      const nextDateStr = nextDate ? nextDate.toDateString() : "Unknown";
+      const nextDate = this.job.nextRun();
+      const nextDateStr = nextDate ? nextDate.toISOString() : "Unknown";
 
       this.context.emit("log", `Cron activo [${this.config.cronSchedule}]. Próximo backup: ${nextDateStr}`);
     } catch (e) {
