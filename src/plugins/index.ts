@@ -14,16 +14,17 @@ export class BasePluginManager extends PluginManager {
     super();
     // Inicializar el motor de reglas
     this.engine = new RuleEngine({ rules: [], globalSettings: { debugMode: true } });
-    
+
     // Registrar los plugins core automáticamente
     this.register(new ActionRegistryPlugin());
   }
 
   /**
-   * Carga plugins desde el directorio configurado por defecto
+   * Carga plugins desde el directorio configurado por defecto o uno personalizado
    */
-  async loadDefaultPlugins() {
-    const pluginsDir = join(process.cwd(), "plugins");
+  async loadDefaultPlugins(customDir?: string) {
+    const defaultDirPlugins = join(process.cwd(), "mcplugins");
+    const pluginsDir = customDir || defaultDirPlugins;
     await ensureDir(pluginsDir);
     await this.loadPluginsFromDirectory(pluginsDir);
     return this.listPlugins();

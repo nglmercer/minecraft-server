@@ -34,15 +34,16 @@ export class GuardianSystem {
 
   /**
    * Initializes the system: loads config and plugins
+   * @param pluginsDir Optional custom directory to load plugins from
    */
-  async init() {
+  async init(pluginsDir?: string) {
     if (this.isInitialized) return;
 
     // Step 1: Load configuration
     await this.config.load();
 
     // Step 2: Load plugins
-    await this.pluginManager.loadDefaultPlugins();
+    await this.pluginManager.loadDefaultPlugins(pluginsDir);
 
     this.isInitialized = true;
   }
