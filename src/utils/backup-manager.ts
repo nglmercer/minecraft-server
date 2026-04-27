@@ -89,8 +89,7 @@ export class BackupManager {
       destPath = path.join(this.opts.backupsDir, `${withoutExt}-${ts}.tar.gz`);
     }
 
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    await writeFile(destPath, bytes);
+    await Bun.write(destPath, file);
 
     const s = await stat(destPath);
     return {

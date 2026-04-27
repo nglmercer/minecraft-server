@@ -4,13 +4,14 @@ import { type Server, type ServerWebSocket } from "bun";
 import { ApiRouter, ApiRequest } from "../src/utils/api-handler";
 import { Config } from "../src/services/config.service";
 import { BackupManager } from "../src/utils/backup-manager";
-import { join } from "path";
-//import index from "./web/index.html";
+import { join } from "node:path";
+
 /**
  * API Plugin that provides a REST and WebSocket interface for server control.
  * Uses a framework-like router for better organization and scalability.
  */
 let lastRequest: string = "";
+
 export class ApiPlugin implements IPlugin {
   name = "api-control";
   version = "1.0.0";
@@ -25,6 +26,7 @@ export class ApiPlugin implements IPlugin {
   private readonly MAX_HISTORY = 200;
 
   private backupManager!: BackupManager;
+  private currentStatus: string = "OFFLINE";
 
   // Environment configuration
   private PORT = process.env.API_PORT ? parseInt(process.env.API_PORT) : 9091;
@@ -66,9 +68,9 @@ export class ApiPlugin implements IPlugin {
         return;
       }
       lastRequest = currentRequest;
-      this.context.emit("log", { 
-        level: "info", 
-        message: `API Request: ${currentRequest}` 
+      this.context.emit("log", {
+        level: "info",
+        message: `API Request: ${currentRequest}`
       });
     });
 
@@ -139,13 +141,32 @@ export class ApiPlugin implements IPlugin {
           message: `Restore requested: ${name}`,
         });
 
-        this.context.emit("server:stop", {});
+        // Wait for server to stop if it's not offline
+        if (this.currentStatus !== "OFFLINE") {
+          this.context.emit("log", { level: "info", message: "Stopping server for restore..." });
+
+          const offlinePromise = new Promise<void>((resolve) => {
+            const listener = (status: any) => {
+              if (status === "OFFLINE") {
+                resolve();
+              }
+            };
+            this.context.on("status", listener);
+          });
+
+          this.context.emit("server:stop", {});
+          await offlinePromise;
+        }
+
         const result = await this.backupManager.restoreBackup(name);
 
         this.context.emit("log", {
           level: "info",
           message: `Restore completed: ${name}`,
         });
+
+        // Auto-restart after restore
+        this.context.emit("server:start", {});
 
         return ApiRequest.success("Restore completed", { data: result });
       },
@@ -186,24 +207,31 @@ export class ApiPlugin implements IPlugin {
     const port = this.PORT;
     const self = this;
     const webDir = join(import.meta.dir, "web");
+
     this.server = Bun.serve({
       port,
       async fetch(req, server) {
         const url = new URL(req.url);
+
+        // Serve Static UI
         if (url.pathname === "/" || url.pathname === "/index.html") {
-          return new Response(Bun.file(join(webDir, "index.html")));
+          const file = Bun.file(join(webDir, "index.html"));
+          if (await file.exists()) return new Response(file);
         }
+
         if (url.pathname.endsWith(".js") || url.pathname.endsWith(".css") || url.pathname.endsWith(".html")) {
           const filePath = join(webDir, url.pathname);
           const file = Bun.file(filePath);
           if (await file.exists()) return new Response(file);
         }
+
         // Upgrade to WebSocket
         if (url.pathname === "/ws" || url.pathname === "/ws/") {
           const success = server.upgrade(req);
           if (success) return undefined;
           return new Response("WebSocket upgrade failed", { status: 400 });
         }
+
         // Handle with router
         const response = await self.router.handle(req, server);
         if (response) return response;
@@ -214,7 +242,7 @@ export class ApiPlugin implements IPlugin {
         open(ws) {
           self.sockets.add(ws);
           ws.send(JSON.stringify({ type: "connected", message: "Welcome to Guardian API" }));
-          
+
           // Send log history to new client
           if (self.logHistory.length > 0) {
             ws.send(JSON.stringify({ type: "history", data: self.logHistory }));
@@ -262,6 +290,7 @@ export class ApiPlugin implements IPlugin {
     });
 
     this.context.on("status", (status) => {
+      this.currentStatus = status as string;
       this.broadcast({ type: "status", data: status });
     });
   }
@@ -280,3 +309,4 @@ export class ApiPlugin implements IPlugin {
     }
   }
 }
+

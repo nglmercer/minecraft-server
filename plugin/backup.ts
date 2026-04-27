@@ -2,7 +2,7 @@ import path from "node:path";
 import { readdir, unlink, stat, mkdir } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { type IPlugin, type PluginContext, type AppEvents } from "bun_plugins";
-import { Cron } from "croner";
+import { cron, type CronJob } from "bun";
 import {
   MinecraftCommands,
   FileExtensions,
@@ -18,7 +18,7 @@ const BackupConstants = {
   VERSION: "4.1.0",
   DESCRIPTION: "Sistema de respaldos automáticos usando Bun Archive y Croner",
   AUTHOR: "Guardian Team",
-  
+
   // Default configuration values
   DEFAULTS: {
     CRON_SCHEDULE: "0 0 4 * * *", // 4:00 AM daily
@@ -27,10 +27,10 @@ const BackupConstants = {
     COMPRESSION_LEVEL: 6,
     SOURCE_PATH: "./data/server",
   } as const,
-  
+
   // File patterns
   BACKUP_PREFIX: "backup-",
-  
+
   // Log messages
   LOGS: {
     CRON_ACTIVE: "Cron activo [{schedule}]. Próximo backup: {date}",
@@ -71,11 +71,11 @@ interface MinecraftPluginContext extends Omit<PluginContext, 'emit' | 'on'> {
   on<K extends keyof MinecraftAppEvents>(event: K, callback: (payload: MinecraftAppEvents[K]) => void): void;
 }
 type BackupConfig = {
-    cronSchedule: string;
-    backupPath: string;
-    maxBackupsToKeep: number;
-    compressionLevel: number;
-    sourcePath: string;
+  cronSchedule: string;
+  backupPath: string;
+  maxBackupsToKeep: number;
+  compressionLevel: number;
+  sourcePath: string;
 }
 
 export class BackupPlugin implements IPlugin {
@@ -86,11 +86,11 @@ export class BackupPlugin implements IPlugin {
   defaultConfig?: BackupConfig;
   private context!: MinecraftPluginContext;
   private config!: BackupConfig;
-  private job: Cron | null = null;
+  private job: CronJob | null = null;
   private isBackingUp = false;
 
   async onLoad(context: PluginContext): Promise<void> {
-    this.context = context as MinecraftPluginContext;    
+    this.context = context as MinecraftPluginContext;
     await this.loadConfig(context);
     this.setupCron();
 
@@ -129,13 +129,13 @@ export class BackupPlugin implements IPlugin {
   private setupCron(): void {
     try {
       // Usar croner para programar los respaldos
-      this.job = new Cron(this.config.cronSchedule, () => {
+      this.job = cron(this.config.cronSchedule, () => {
         this.performBackup();
       });
-      
-      const nextDate = this.job.nextRun();
-      const nextDateStr = nextDate ? nextDate.toISOString() : "Unknown";
-      
+
+      const nextDate = cron.parse(this.config.cronSchedule);
+      const nextDateStr = nextDate ? nextDate.toDateString() : "Unknown";
+
       this.context.emit("log", `Cron activo [${this.config.cronSchedule}]. Próximo backup: ${nextDateStr}`);
     } catch (e) {
       this.context.emit("error", `Error al inicializar Croner: ${e}`);
@@ -149,7 +149,7 @@ export class BackupPlugin implements IPlugin {
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const fileName = `${BackupConstants.BACKUP_PREFIX}${timestamp}${FileExtensions.TAR_GZ}`;
-      
+
       const sourceDir = path.resolve(this.config.sourcePath);
       const backupDir = path.resolve(this.config.backupPath);
       const fullDestPath = path.join(backupDir, fileName);
@@ -179,8 +179,8 @@ export class BackupPlugin implements IPlugin {
 
       // Write
       await Bun.write(fullDestPath, archive);
-      
-      this.context.emit("log", 
+
+      this.context.emit("log",
         BackupConstants.LOGS.BACKUP_SUCCESS.replace("{fileName}", fileName)
       );
 
@@ -188,12 +188,12 @@ export class BackupPlugin implements IPlugin {
       await this.pruneOldBackups(backupDir, this.config.maxBackupsToKeep);
 
     } catch (error) {
-      this.context.emit("error", 
+      this.context.emit("error",
         BackupConstants.LOGS.BACKUP_ERROR.replace("{error}", String(error))
       );
-      this.context.emit("log", { 
-        level: "error", 
-        message: BackupConstants.LOGS.BACKUP_FAILED.replace("{error}", String(error)) 
+      this.context.emit("log", {
+        level: "error",
+        message: BackupConstants.LOGS.BACKUP_FAILED.replace("{error}", String(error))
       });
     } finally {
       // Re-enable auto-saving
@@ -204,16 +204,16 @@ export class BackupPlugin implements IPlugin {
   }
 
   private async scanDirectory(
-    root: string, 
-    current: string, 
-    exclude: string, 
+    root: string,
+    current: string,
+    exclude: string,
     map: Record<string, any>
   ): Promise<void> {
     const entries = await readdir(current, { withFileTypes: true });
 
     for (const entry of entries) {
       const fullPath = path.join(current, entry.name);
-      
+
       if (fullPath === exclude) continue;
 
       const relPath = path.relative(root, fullPath).replace(/\\/g, "/");
@@ -247,13 +247,13 @@ export class BackupPlugin implements IPlugin {
         const oldOnes = backups.slice(keep);
         for (const old of oldOnes) {
           await unlink(old.path);
-          this.context.emit("log", 
+          this.context.emit("log",
             BackupConstants.LOGS.BACKUP_DELETED.replace("{name}", old.name)
           );
         }
       }
     } catch (e) {
-      this.context.emit("error", 
+      this.context.emit("error",
         BackupConstants.LOGS.CLEANUP_ERROR.replace("{error}", String(e))
       );
     }
