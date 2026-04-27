@@ -11,6 +11,7 @@
   },
   "scripts": {
     "start": "bun run index.ts",
+    "setup": "bun run index.ts --setup",
     "dev": "bun run index.ts",
     "typecheck": "bunx tsc --noEmit",
     "build": "bun build.ts",
