@@ -88,7 +88,7 @@ const BackupManager: FunctionComponent<BackupManagerProps> = (props) => {
     return (
         <div class="card">
             <h2>
-                <i class="fas fa-file-zipper"></i>
+                <span class="material-symbols-rounded">folder_zip</span>
                 Backups
             </h2>
             <div class="control-group">
@@ -99,7 +99,7 @@ const BackupManager: FunctionComponent<BackupManagerProps> = (props) => {
                         onClick={handleCreate}
                         disabled={loading}
                     >
-                        <i class="fas fa-plus"></i>
+                        <span class="material-symbols-rounded">add</span>
                         Create
                     </button>
                     <button 
@@ -108,35 +108,35 @@ const BackupManager: FunctionComponent<BackupManagerProps> = (props) => {
                         onClick={fetchBackups}
                         disabled={loading}
                     >
-                        <i class={`fas fa-sync ${loading ? 'fa-spin' : ''}`}></i>
+                        <span class={`material-symbols-rounded ${loading ? 'fa-spin' : ''}`}>sync</span>
                         Refresh
                     </button>
                 </div>
 
                 <div class="upload-area" style={{ marginBottom: "0.5rem" }}>
                     <label class="btn-start" style={{ display: "block", textAlign: "center", cursor: "pointer", opacity: uploading ? 0.5 : 1 }}>
-                        <i class={`fas ${uploading ? 'fa-spinner fa-spin' : 'fa-upload'}`}></i>
+                        <span class={`material-symbols-rounded ${uploading ? 'fa-spin' : ''}`}>{uploading ? 'sync' : 'upload'}</span>
                         {uploading ? ' Uploading...' : ' Upload Backup (.tar.gz)'}
                         <input type="file" accept=".tar.gz" onChange={handleUpload} style={{ display: "none" }} disabled={uploading} />
                     </label>
                 </div>
 
-                <div class="backup-list" style={{ maxHeight: "200px", overflowY: "auto", border: "1px solid var(--border)", borderRadius: "4px", padding: "0.25rem" }}>
+                <div class="backup-list">
                     {backups.length === 0 ? (
                         <p class="hint-text" style={{ textAlign: "center", padding: "1rem" }}>No backups found</p>
                     ) : (
                         backups.map(b => (
-                            <div key={b.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem", borderBottom: "1px solid var(--border)", fontSize: "0.85rem" }}>
-                                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: "0.5rem" }}>
-                                    <div title={b.name}>{b.name}</div>
-                                    <small style={{ color: "var(--text-secondary)" }}>{formatSize(b.size)} • {new Date(b.modifiedAt).toLocaleString()}</small>
+                            <div key={b.name} class="backup-item">
+                                <div class="backup-info">
+                                    <div class="backup-name" title={b.name}>{b.name}</div>
+                                    <small class="backup-meta">{formatSize(b.size)} • {new Date(b.modifiedAt).toLocaleString()}</small>
                                 </div>
-                                <div style={{ display: "flex", gap: "0.25rem" }}>
-                                    <button class="btn-start" onClick={() => handleDownload(b.name)} title="Download" style={{ padding: "0.25rem 0.5rem" }}>
-                                        <i class="fas fa-download"></i>
+                                <div class="backup-actions">
+                                    <button class="btn-start" onClick={() => handleDownload(b.name)} title="Download">
+                                        <span class="material-symbols-rounded">download</span>
                                     </button>
-                                    <button class="btn-stop" onClick={() => handleRestore(b.name)} title="Restore" style={{ padding: "0.25rem 0.5rem" }}>
-                                        <i class="fas fa-trash-arrow-up"></i>
+                                    <button class="btn-stop" onClick={() => handleRestore(b.name)} title="Restore">
+                                        <span class="material-symbols-rounded">restore</span>
                                     </button>
                                 </div>
                             </div>

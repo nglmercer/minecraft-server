@@ -58,14 +58,13 @@ const Properties = ({ apiCall, appendLog }: PropertiesProps) => {
 
     return (
         <div class="card glass">
-            <div class="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div class="card-header properties-header">
                 <h2>Server Properties</h2>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div class="header-actions">
                     <input 
                         type="text" 
                         placeholder="Filter properties..." 
-                        class="input"
-                        style={{ width: '200px' }}
+                        class="input filter-input"
                         value={filter}
                         onInput={(e) => setFilter((e.target as HTMLInputElement).value)}
                     />
@@ -74,6 +73,7 @@ const Properties = ({ apiCall, appendLog }: PropertiesProps) => {
                         onClick={handleSave}
                         disabled={saving}
                     >
+                        <span class={`material-symbols-rounded ${saving ? 'fa-spin' : ''}`}>{saving ? 'sync' : 'save'}</span>
                         {saving ? "Saving..." : "Save Changes"}
                     </button>
                     <button 
@@ -81,26 +81,27 @@ const Properties = ({ apiCall, appendLog }: PropertiesProps) => {
                         onClick={fetchProperties}
                         disabled={saving}
                     >
+                        <span class="material-symbols-rounded">sync</span>
                         Refresh
                     </button>
                 </div>
             </div>
-            <div class="properties-list" style={{ maxHeight: '600px', overflowY: 'auto', padding: '15px' }}>
+            <div class="properties-list">
                 {filteredKeys.length === 0 ? (
-                    <p style={{ textAlign: 'center', opacity: 0.6 }}>No properties found matching your filter.</p>
+                    <p style={{ textAlign: 'center', opacity: 0.6, padding: '2rem' }}>No properties found matching your filter.</p>
                 ) : (
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <table class="properties-table">
                         <thead>
-                            <tr style={{ textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                                <th style={{ padding: '10px' }}>Property</th>
-                                <th style={{ padding: '10px' }}>Value</th>
+                            <tr>
+                                <th>Property</th>
+                                <th>Value</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredKeys.map(key => (
-                                <tr key={key} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <td style={{ padding: '8px 10px', fontSize: '0.9rem', opacity: 0.8 }}>{key}</td>
-                                    <td style={{ padding: '8px 10px' }}>
+                                <tr key={key}>
+                                    <td class="property-key">{key}</td>
+                                    <td class="property-value">
                                         {typeof properties[key] === 'boolean' ? (
                                             <label class="switch">
                                                 <input 
@@ -114,7 +115,6 @@ const Properties = ({ apiCall, appendLog }: PropertiesProps) => {
                                             <input 
                                                 type={typeof properties[key] === 'number' ? "number" : "text"} 
                                                 class="input"
-                                                style={{ width: '100%', padding: '4px 8px' }}
                                                 value={properties[key]}
                                                 onInput={(e) => handlePropertyChange(key, (e.target as HTMLInputElement).value)}
                                             />

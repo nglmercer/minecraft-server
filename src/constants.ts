@@ -54,7 +54,7 @@ export const ConsoleMessages = {
   // Java
   JAVA_FAILED: "❌ Failed to get or install Java",
   ERROR_MAIN: "💥 Error in main function:",
-  
+
   // Guardian
   GUARDIAN_ERROR: "❌ Guardian error:",
   GUARDIAN_STATUS: "📊 Guardian status:",
@@ -66,12 +66,12 @@ export const ConsoleMessages = {
   GUARDIAN_HUNG: "Server hung, forcing kill (SIGKILL)...",
   GUARDIAN_RESTART: "Server crashed. Restarting in {delay}ms (Attempt {current}/{max})",
   GUARDIAN_MAX_RETRIES: "Max retries reached or auto-restart disabled.",
-  
+
   // General
-  CTRL_C: "Ctrl+C to close",
+  CTRL_C: "server stoppend, ctrl c for exit",
   ERROR_GENERIC: "error.",
   LOG_PREFIX: "log:",
-  
+
   // Plugin related
   PLUGIN_LOADED: "Plugin loaded: {name} v{version}",
   PLUGIN_ALREADY_REGISTERED: "Plugin {name} is already registered.",
@@ -197,11 +197,11 @@ export const CoreService = {
   EULA_DATE_PREFIX: "#",
   EULA_ACCEPT: "eula=true",
   EULA_DECLINE: "eula=false",
-  
+
   // Default server core values
   DEFAULT_CORE: "paper" as const,
   DEFAULT_CORE_VERSION: "1.21" as const,
-  
+
   // File names
   EULA_FILE: "eula.txt",
   JAVA_ZIP_PREFIX: "java-",

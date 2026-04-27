@@ -160,18 +160,18 @@ const App = () => {
         <div class="container">
             <Header version={version} status={status} />
 
-            <div class="tabs glass" style={{ marginBottom: '20px', display: 'flex', gap: '10px', padding: '10px' }}>
+            <div class="tabs">
                 <button 
-                    class={`btn ${activeView === 'console' ? 'btn-primary' : ''}`}
+                    class={`btn-tab ${activeView === 'console' ? 'active' : ''}`}
                     onClick={() => setActiveView('console')}
                 >
-                    🖥️ Console
+                    <span class="material-symbols-rounded">terminal</span> Console
                 </button>
                 <button 
-                    class={`btn ${activeView === 'properties' ? 'btn-primary' : ''}`}
+                    class={`btn-tab ${activeView === 'properties' ? 'btn-primary' : ''}`}
                     onClick={() => setActiveView('properties')}
                 >
-                    ⚙️ Properties
+                    <span class="material-symbols-rounded">settings</span> Properties
                 </button>
             </div>
 

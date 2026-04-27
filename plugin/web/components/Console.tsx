@@ -30,7 +30,7 @@ const Console: FunctionComponent<ConsoleProps> = (props) => {
     return (
         <section class="card console-container">
             <h2>
-                <i class="fas fa-terminal"></i>
+                <span class="material-symbols-rounded">terminal</span>
                 Console
             </h2>
             <div class="console" ref={consoleRef}>
@@ -54,7 +54,7 @@ const Console: FunctionComponent<ConsoleProps> = (props) => {
                     onInput={(e) => setCommandInput(e.currentTarget.value)}
                 />
                 <button type="submit">
-                    <i class="fas fa-paper-plane"></i>
+                    <span class="material-symbols-rounded">send</span>
                     Send
                 </button>
             </form>

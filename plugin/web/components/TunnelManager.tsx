@@ -8,7 +8,7 @@ const TunnelManager: FunctionComponent<TunnelManagerProps> = (props) => {
     return (
         <div class="card">
             <h2>
-                <i class="fas fa-network-wired"></i>
+                <span class="material-symbols-rounded">lan</span>
                 Tunnel (Playit.gg)
             </h2>
             <div class="control-group">
@@ -19,7 +19,7 @@ const TunnelManager: FunctionComponent<TunnelManagerProps> = (props) => {
                         onClick={() => props.onTriggerGenericAction('/tunnel/start', 'Tunnel Start')}
                         data-tooltip="Start the network tunnel"
                     >
-                        <i class="fas fa-link"></i>
+                        <span class="material-symbols-rounded">link</span>
                         Start
                     </button>
                     <button 
@@ -28,7 +28,7 @@ const TunnelManager: FunctionComponent<TunnelManagerProps> = (props) => {
                         onClick={() => props.onTriggerGenericAction('/tunnel/stop', 'Tunnel Stop')}
                         data-tooltip="Stop the network tunnel"
                     >
-                        <i class="fas fa-link-slash"></i>
+                        <span class="material-symbols-rounded">link_off</span>
                         Stop
                     </button>
                 </div>
@@ -39,7 +39,7 @@ const TunnelManager: FunctionComponent<TunnelManagerProps> = (props) => {
                     onClick={() => props.onTriggerGenericAction('/tunnel/restart', 'Tunnel Restart')}
                     data-tooltip="Reconnect the network tunnel"
                 >
-                    <i class="fas fa-arrows-rotate"></i>
+                    <span class="material-symbols-rounded">sync</span>
                     Restart Tunnel
                 </button>
             </div>

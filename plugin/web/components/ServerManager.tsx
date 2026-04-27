@@ -8,7 +8,7 @@ const ServerManager: FunctionComponent<ServerManagerProps> = (props) => {
     return (
         <div class="card">
             <h2>
-                <i class="fas fa-server"></i>
+                <span class="material-symbols-rounded">dns</span>
                 Server
             </h2>
             <div class="control-group">
@@ -17,7 +17,7 @@ const ServerManager: FunctionComponent<ServerManagerProps> = (props) => {
                     onClick={() => props.onTriggerAction('start')}
                     data-tooltip="Launch the Minecraft server"
                 >
-                    <i class="fas fa-play"></i>
+                    <span class="material-symbols-rounded">play_arrow</span>
                     Start Server
                 </button>
                 
@@ -26,7 +26,7 @@ const ServerManager: FunctionComponent<ServerManagerProps> = (props) => {
                     onClick={() => props.onTriggerAction('stop')}
                     data-tooltip="Gracefully stop the server"
                 >
-                    <i class="fas fa-stop"></i>
+                    <span class="material-symbols-rounded">stop</span>
                     Stop Server
                 </button>
                 
@@ -35,7 +35,7 @@ const ServerManager: FunctionComponent<ServerManagerProps> = (props) => {
                     onClick={() => props.onTriggerAction('restart')}
                     data-tooltip="Restart the server process"
                 >
-                    <i class="fas fa-rotate-right"></i>
+                    <span class="material-symbols-rounded">refresh</span>
                     Restart Server
                 </button>
             </div>

@@ -23,7 +23,7 @@ const Header: FunctionComponent<HeaderProps> = (props) => {
         <header class="header">
             <div style={{ display: "flex", "align-items": "center", gap: "1rem" }}>
                 <div style={{ background: "var(--accent)", padding: "0.5rem", "border-radius": "0.5rem", display: "flex", "align-items": "center", "justify-content": "center" }}>
-                    <i class="fas fa-shield-halved" style={{ color: "white", "font-size": "1.25rem" }}></i>
+                    <span class="material-symbols-rounded" style={{ color: "white", "font-size": "1.5rem" }}>shield</span>
                 </div>
                 <div>
                     <h1 style={{ margin: 0, "font-size": "1.25rem", "font-weight": "800", "letter-spacing": "-0.025em" }}>Guardian Panel</h1>
